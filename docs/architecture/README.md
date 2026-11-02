@@ -1,57 +1,58 @@
-# Kiến trúc Center9Edu LMS
+# Center9Edu LMS architecture
 
-Modular monolith trong một pnpm workspace. Một API NestJS, một frontend Next.js, một package database dùng chung.
+A modular monolith in one pnpm workspace: one NestJS API, one Next.js frontend, and one shared database package.
 
 ```text
-Trình duyệt ──HTTP──▶ apps/web (Next.js) ──HTTP──▶ apps/api (NestJS) ──Prisma──▶ PostgreSQL
-                                                        │
-                                                        └── import @center9/database
+Browser ──HTTP──▶ apps/web (Next.js) ──HTTP──▶ apps/api (NestJS) ──Prisma──▶ PostgreSQL
+                                                    │
+                                                    └── imports @center9/database
 ```
 
-## Ranh giới
+## Boundaries
 
-- **Chỉ `apps/api` được import `@center9/database`.** `apps/web` lấy dữ liệu qua REST API.
-  ESLint chặn `@center9/database` và `@prisma/*` trong `apps/web`.
-- **Không trả Prisma model trực tiếp ra API.** Mỗi endpoint tự định nghĩa kiểu response (DTO) và map từ model,
-  để thay đổi schema (thêm cột nhạy cảm như `passwordHash`) không vô tình lộ ra client.
-- Module nghiệp vụ mới (lớp học, bài tập, …) là NestJS module trong `apps/api/src/<module>/`.
-  Chỉ tách thành package riêng khi có từ hai nơi trở lên cần dùng chung.
+- **Only `apps/api` may import `@center9/database`.** `apps/web` gets its data through the REST API.
+  ESLint blocks `@center9/database` and `@prisma/*` in `apps/web`.
+- **Never return Prisma models directly from the API.** Each endpoint defines its own response type (DTO) and maps from the model,
+  so that a schema change (adding a sensitive column such as `passwordHash`) cannot accidentally leak to clients.
+- New business modules (classes, assignments, …) are NestJS modules in `apps/api/src/<module>/`.
+  Extract a separate package only when two or more places need to share the code.
 
-## Quyết định kỹ thuật
+## Technical decisions
 
-| Quyết định | Lý do |
+| Decision | Reason |
 | --- | --- |
-| Node.js 24 LTS, pnpm 11.10.0 | Node 24 là Active LTS; hỗ trợ sẵn `--env-file`, `process.loadEnvFile`. pnpm cố định qua `packageManager` để cả team và CI dùng cùng phiên bản. |
-| Không dùng Turborepo | Chỉ có 3 package; `pnpm -r` đã chạy theo thứ tự phụ thuộc. Cân nhắc thêm khi build/CI chậm và cần cache. |
-| Toàn bộ ESM (`"type": "module"`) | NestJS 12 và template chính thức của nó là ESM; Prisma 7 generator `prisma-client` sinh ESM. Import nội bộ dùng đuôi `.js`. |
-| TypeScript 6.0 | typescript-eslint và NestJS CLI chưa hỗ trợ TypeScript 7. |
-| Prisma 7 + `@prisma/adapter-pg` | Prisma 7 bắt buộc driver adapter, cấu hình kết nối nằm ở `prisma.config.ts`. Pool timeout 5s để request/health check không treo khi DB sập. |
-| `@center9/database` build ra `dist/` | API chạy `dist` đã compile, không phụ thuộc runtime TS. `postinstall` tự generate + build để `pnpm install` xong là chạy được. |
-| Prisma Client không commit | Generate từ `schema.prisma` khi install; tránh diff lớn và lệch phiên bản. |
-| Health: `/health` và `/health/ready` | Liveness không chạm DB (để orchestrator không restart API khi DB chập chờn); readiness chạy `SELECT 1`. Response chỉ có trạng thái, lỗi chi tiết chỉ ghi log. |
-| Vitest cho API | Mặc định của NestJS 12; nhanh, hỗ trợ ESM sẵn. |
-| Một ESLint config ở gốc | Một lệnh `pnpm lint` cho cả repo; rule Next.js chỉ áp dụng cho `apps/web`. |
-| PostgreSQL 18, bind `127.0.0.1` | Bản ổn định mới nhất; không lộ cổng DB ra mạng LAN. |
-| Session phía server cho đăng nhập | Token ngẫu nhiên, chỉ lưu hash trong `auth_sessions`, nên thu hồi được ngay. Hiện mới có schema, chưa có code đăng nhập. |
-| Vai trò là enum, quyền đặt trong code | `SUPER_ADMIN`, `CENTER_ADMIN`, `SALES`, `TEACHER`, `STUDENT`, `PARENT`. Không dùng bảng `roles`/`permissions` vì chưa cần sửa quyền lúc chạy. Trợ giảng là `TEACHER` với `class_teachers.role_in_class = ASSISTANT`. |
-| Bài học chia theo phần | `lessons.part_count` quy định số phần trong giáo trình. `class_session_lessons` nối nhiều-nhiều buổi với bài, mỗi dòng ghi `part_number`. |
-| Một dòng ghi danh cho mỗi học sinh và lớp | `DROPPED` là nghỉ thật, không quay lại lớp. `REMOVED` là xóa khỏi lớp (ví dụ thao tác nhầm), khôi phục trên chính dòng cũ nên giữ được điểm danh. |
+| Node.js 24 LTS, pnpm 11.10.0 | Node 24 is Active LTS and has built-in `--env-file` and `process.loadEnvFile`. pnpm is pinned through `packageManager` so the whole team and CI use the same version. |
+| No Turborepo | There are only 3 packages, and `pnpm -r` already runs in dependency order. Consider adding it when build or CI becomes slow and caching is needed. |
+| ESM everywhere (`"type": "module"`) | NestJS 12 and its official template are ESM, and the Prisma 7 `prisma-client` generator emits ESM. Internal imports use the `.js` extension. |
+| TypeScript 6.0 | typescript-eslint and the NestJS CLI do not support TypeScript 7 yet. |
+| Prisma 7 + `@prisma/adapter-pg` | Prisma 7 requires a driver adapter, and the connection config lives in `prisma.config.ts`. A 5s pool timeout keeps requests and health checks from hanging when the database is down. |
+| `@center9/database` builds to `dist/` | The API runs compiled `dist` with no dependency on a TS runtime. `postinstall` generates and builds automatically, so everything runs right after `pnpm install`. |
+| Prisma Client is not committed | It is generated from `schema.prisma` on install, which avoids large diffs and version mismatches. |
+| Health: `/health` and `/health/ready` | Liveness does not touch the database, so an orchestrator does not restart the API when the database is flaky. Readiness runs `SELECT 1`. Responses contain status only; error details go only to the logs. |
+| Vitest for the API | The NestJS 12 default; fast, with built-in ESM support. |
+| One ESLint config at the root | One `pnpm lint` command for the whole repository; Next.js rules apply only to `apps/web`. |
+| PostgreSQL 18, bound to `127.0.0.1` | The latest stable release; the database port is not exposed to the LAN. |
+| Server-side sessions for login | A random token, with only its hash stored in `auth_sessions`, so sessions can be revoked immediately. Only the schema exists so far; there is no login code yet. |
+| Roles are an enum, permissions live in code | `SUPER_ADMIN`, `CENTER_ADMIN`, `SALES`, `TEACHER`, `STUDENT`, `PARENT`. There are no `roles`/`permissions` tables because permissions do not need to change at runtime yet. An assistant is a `TEACHER` with `class_teachers.role_in_class = ASSISTANT`. |
+| Lessons are divided into parts | `lessons.part_count` sets the number of parts in the curriculum. `class_session_lessons` links sessions and lessons many-to-many, and each row records a `part_number`. |
+| One enrollment row per student and class | `DROPPED` means the student really left and cannot return to the class. `REMOVED` means taken off the class (for example by mistake); restoring reuses the same row, so attendance is kept. |
 
-## Migration
+## Migrations
 
-- Migration nằm trong `packages/database/prisma/migrations/`, tạo bằng `prisma migrate dev`, áp dụng bằng `prisma migrate deploy`.
-- Không dùng `prisma db push` cho môi trường dùng chung.
-- Schema SQL cũ (nếu có) không áp dụng trực tiếp; chuyển dần thành model Prisma + migration có review.
-- Prisma không biểu diễn được `CHECK` và partial unique index, nên chúng được viết tay trong file migration, ở cuối phần `Hand-written`. Prisma bỏ qua các ràng buộc này khi so sánh schema, nên CI không phát hiện nếu chúng bị thiếu.
+- See [`database.md`](database.md) for the table structure and hand-written constraints.
+- Migrations live in `packages/database/prisma/migrations/`, are created with `prisma migrate dev`, and are applied with `prisma migrate deploy`.
+- Do not use `prisma db push` for shared environments.
+- Legacy SQL schemas (if any) are not applied directly; port them gradually into Prisma models and reviewed migrations.
+- Prisma cannot express `CHECK` constraints and partial unique indexes, so they are written by hand in the migration file, at the end under `Hand-written`. Prisma ignores these constraints when comparing schemas, so CI does not notice if one is missing.
 
-## Quy tắc API phải thực hiện
+## Rules the API must enforce
 
-Database không tự bảo đảm các quy tắc sau:
+The database does not guarantee the following rules:
 
-- **Chuyển trạng thái ghi danh:** `REMOVED` về `ACTIVE` được phép và phải xóa `left_at`. `DROPPED` về `ACTIVE` chỉ dành cho admin sửa sai, có lý do. Mọi lần chuyển đều ghi `audit_logs`.
-- **Liên kết buổi và bài:** bài phải thuộc đúng course version của lớp, và `part_number <= part_count`.
-- **Tiến độ:** bài hoàn thành khi mọi phần đều gắn với buổi `COMPLETED`; tính bằng truy vấn, không lưu cột.
-- **Sĩ số:** chỉ đếm `ACTIVE`, kiểm tra trong transaction có khóa dòng lớp.
-- **Version đã publish:** không cho sửa, kể cả `part_count`, để tiến độ các lớp không bị sai.
-- **DTO:** không bao giờ trả `password_hash`, `token_hash`; không trả `student_profiles.notes` cho học sinh và phụ huynh.
-- **`audit_logs.metadata`:** không chứa thông tin cá nhân.
+- **Enrollment status changes:** `REMOVED` to `ACTIVE` is allowed and must clear `left_at`. `DROPPED` to `ACTIVE` is only for admin corrections, with a reason. Every change is recorded in `audit_logs`.
+- **Session and lesson links:** the lesson must belong to the class's course version, and `part_number <= part_count`.
+- **Progress:** a lesson is complete when every part is linked to a `COMPLETED` session; compute this with a query, not a stored column.
+- **Capacity:** count only `ACTIVE`, and check inside a transaction that locks the class row.
+- **Published versions:** do not allow edits, including `part_count`, so class progress stays correct.
+- **DTOs:** never return `password_hash` or `token_hash`; do not return `student_profiles.notes` to students or parents.
+- **`audit_logs.metadata`:** must not contain personal data.
