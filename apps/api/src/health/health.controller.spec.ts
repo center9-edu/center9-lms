@@ -14,19 +14,19 @@ async function setup(queryRaw: () => Promise<unknown>) {
 }
 
 describe('HealthController', () => {
-  it('live trả ok mà không truy vấn database', async () => {
+  it('live returns ok without querying the database', async () => {
     const queryRaw = vi.fn();
     const controller = await setup(queryRaw);
     expect(controller.live()).toEqual({ status: 'ok' });
     expect(queryRaw).not.toHaveBeenCalled();
   });
 
-  it('ready trả ok khi database phản hồi', async () => {
+  it('ready returns ok when the database responds', async () => {
     const controller = await setup(async () => [{ '?column?': 1 }]);
     await expect(controller.ready()).resolves.toEqual({ status: 'ok', database: 'up' });
   });
 
-  it('ready trả 503 và không lộ chi tiết lỗi khi database lỗi', async () => {
+  it('ready returns 503 without exposing error details when the database fails', async () => {
     const controller = await setup(async () => {
       throw new Error('connect ECONNREFUSED 10.0.0.5:5432 password=secret');
     });

@@ -7,12 +7,379 @@ datasource db {
   provider = "postgresql"
 }
 
+// Hand-written constraints that Prisma cannot express (CHECK, partial unique indexes)
+// live in the migrations. Keep them in mind when changing the models below.
+
+// ---------------------------------------------------------------------------
+// People and authentication
+// ---------------------------------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN
+  CENTER_ADMIN
+  SALES
+  TEACHER
+  STUDENT
+  PARENT
+
+  @@map("role")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+
+  @@map("user_status")
+}
+
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  email     String   @unique
-  fullName  String   @map("full_name")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                 String     @id @default(uuid()) @db.Uuid
+  username           String     @unique
+  passwordHash       String     @map("password_hash")
+  fullName           String     @map("full_name")
+  email              String?
+  phone              String?
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(true) @map("must_change_password")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  roles            UserRole[]
+  authSessions     AuthSession[]
+  studentProfile   StudentProfile?
+  teacherProfile   TeacherProfile?
+  guardian         Guardian?
+  auditLogs        AuditLog[]
+  coursesCreated   Course[]
+  attendanceMarked Attendance[]
 
   @@map("users")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  role   Role
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+  @@map("user_roles")
+}
+
+model AuthSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+model StudentProfile {
+  userId      String    @id @map("user_id") @db.Uuid
+  studentCode String    @unique @map("student_code")
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
+  schoolName  String?   @map("school_name")
+  notes       String?
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  guardians   StudentGuardian[]
+  enrollments ClassEnrollment[]
+
+  @@map("student_profiles")
+}
+
+model TeacherProfile {
+  userId      String  @id @map("user_id") @db.Uuid
+  teacherCode String  @unique @map("teacher_code")
+  bio         String?
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  classes ClassTeacher[]
+
+  @@map("teacher_profiles")
+}
+
+// A guardian does not need an account, so the user link is optional.
+model Guardian {
+  id       String  @id @default(uuid()) @db.Uuid
+  userId   String? @unique @map("user_id") @db.Uuid
+  fullName String  @map("full_name")
+  phone    String?
+  email    String?
+
+  user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  students StudentGuardian[]
+
+  @@map("guardians")
+}
+
+model StudentGuardian {
+  studentId        String  @map("student_id") @db.Uuid
+  guardianId       String  @map("guardian_id") @db.Uuid
+  relationship     String
+  isPrimaryContact Boolean @default(false) @map("is_primary_contact")
+
+  student  StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Restrict)
+  guardian Guardian       @relation(fields: [guardianId], references: [id], onDelete: Restrict)
+
+  @@id([studentId, guardianId])
+  @@index([guardianId])
+  @@map("student_guardians")
+}
+
+// actorId is null for actions performed by the system. metadata must not contain personal data.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Curriculum
+// ---------------------------------------------------------------------------
+
+enum CourseVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@map("course_version_status")
+}
+
+model Course {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String
+  slug        String    @unique
+  description String?
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdById String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy User?           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  versions  CourseVersion[]
+
+  @@index([createdById])
+  @@map("courses")
+}
+
+model CourseVersion {
+  id            String              @id @default(uuid()) @db.Uuid
+  courseId      String              @map("course_id") @db.Uuid
+  versionNumber Int                 @map("version_number")
+  status        CourseVersionStatus @default(DRAFT)
+  publishedAt   DateTime?           @map("published_at") @db.Timestamptz(3)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  chapters Chapter[]
+  classes  Class[]
+
+  @@unique([courseId, versionNumber])
+  @@map("course_versions")
+}
+
+model Chapter {
+  id              String @id @default(uuid()) @db.Uuid
+  courseVersionId String @map("course_version_id") @db.Uuid
+  title           String
+  position        Int
+
+  courseVersion CourseVersion @relation(fields: [courseVersionId], references: [id], onDelete: Restrict)
+  lessons       Lesson[]
+
+  @@unique([courseVersionId, position])
+  @@map("chapters")
+}
+
+// partCount is how many parts the lesson is taught in; each part maps to a class session.
+model Lesson {
+  id        String   @id @default(uuid()) @db.Uuid
+  chapterId String   @map("chapter_id") @db.Uuid
+  title     String
+  content   Json?
+  position  Int
+  partCount Int      @default(1) @map("part_count")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  chapter  Chapter              @relation(fields: [chapterId], references: [id], onDelete: Restrict)
+  sessions ClassSessionLesson[]
+
+  @@unique([chapterId, position])
+  @@map("lessons")
+}
+
+// ---------------------------------------------------------------------------
+// Classes, sessions and attendance
+// ---------------------------------------------------------------------------
+
+enum ClassStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("class_status")
+}
+
+enum ClassTeacherRole {
+  MAIN_TEACHER
+  ASSISTANT
+
+  @@map("class_teacher_role")
+}
+
+// DROPPED: the student really left and cannot rejoin this class.
+// REMOVED: taken off the class list (for example by mistake) and can be restored.
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  REMOVED
+
+  @@map("enrollment_status")
+}
+
+enum ClassSessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+
+  @@map("class_session_status")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+
+  @@map("attendance_status")
+}
+
+model Class {
+  id              String      @id @default(uuid()) @db.Uuid
+  courseVersionId String      @map("course_version_id") @db.Uuid
+  name            String
+  code            String      @unique
+  status          ClassStatus @default(DRAFT)
+  startDate       DateTime?   @map("start_date") @db.Date
+  endDate         DateTime?   @map("end_date") @db.Date
+  capacity        Int?
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  courseVersion CourseVersion     @relation(fields: [courseVersionId], references: [id], onDelete: Restrict)
+  teachers      ClassTeacher[]
+  enrollments   ClassEnrollment[]
+  sessions      ClassSession[]
+
+  @@index([courseVersionId])
+  @@map("classes")
+}
+
+model ClassTeacher {
+  classId     String           @map("class_id") @db.Uuid
+  teacherId   String           @map("teacher_id") @db.Uuid
+  roleInClass ClassTeacherRole @map("role_in_class")
+  assignedAt  DateTime         @default(now()) @map("assigned_at") @db.Timestamptz(3)
+
+  class   Class          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  teacher TeacherProfile @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+
+  @@id([classId, teacherId])
+  @@index([teacherId])
+  @@map("class_teachers")
+}
+
+// One row per student and class: restoring a REMOVED student reuses the row and keeps attendance.
+model ClassEnrollment {
+  id         String           @id @default(uuid()) @db.Uuid
+  classId    String           @map("class_id") @db.Uuid
+  studentId  String           @map("student_id") @db.Uuid
+  status     EnrollmentStatus @default(ACTIVE)
+  enrolledAt DateTime         @default(now()) @map("enrolled_at") @db.Timestamptz(3)
+  leftAt     DateTime?        @map("left_at") @db.Timestamptz(3)
+
+  class      Class          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Restrict)
+  attendance Attendance[]
+
+  @@unique([classId, studentId])
+  @@unique([id, classId])
+  @@index([studentId, status])
+  @@map("class_enrollments")
+}
+
+model ClassSession {
+  id        String             @id @default(uuid()) @db.Uuid
+  classId   String             @map("class_id") @db.Uuid
+  title     String
+  startsAt  DateTime           @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime           @map("ends_at") @db.Timestamptz(3)
+  location  String?
+  status    ClassSessionStatus @default(SCHEDULED)
+  note      String?
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  class      Class                @relation(fields: [classId], references: [id], onDelete: Restrict)
+  lessons    ClassSessionLesson[]
+  attendance Attendance[]
+
+  @@unique([id, classId])
+  @@index([classId, startsAt])
+  @@map("class_sessions")
+}
+
+// Many-to-many: a session can cover several lessons, and a lesson spans several sessions (one part each).
+model ClassSessionLesson {
+  classSessionId String @map("class_session_id") @db.Uuid
+  lessonId       String @map("lesson_id") @db.Uuid
+  partNumber     Int    @map("part_number")
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  lesson       Lesson       @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+
+  @@id([classSessionId, lessonId, partNumber])
+  @@index([lessonId])
+  @@map("class_session_lessons")
+}
+
+// classId is shared by both composite foreign keys, so the session and enrollment must be in the same class.
+model Attendance {
+  id             String           @id @default(uuid()) @db.Uuid
+  classId        String           @map("class_id") @db.Uuid
+  classSessionId String           @map("class_session_id") @db.Uuid
+  enrollmentId   String           @map("enrollment_id") @db.Uuid
+  status         AttendanceStatus
+  note           String?
+  markedById     String?          @map("marked_by") @db.Uuid
+  markedAt       DateTime         @default(now()) @map("marked_at") @db.Timestamptz(3)
+
+  classSession ClassSession    @relation(fields: [classSessionId, classId], references: [id, classId], onDelete: Restrict)
+  enrollment   ClassEnrollment @relation(fields: [enrollmentId, classId], references: [id, classId], onDelete: Restrict)
+  markedBy     User?           @relation(fields: [markedById], references: [id], onDelete: Restrict)
+
+  @@unique([classSessionId, enrollmentId])
+  @@index([enrollmentId])
+  @@index([markedById])
+  @@map("attendance")
 }

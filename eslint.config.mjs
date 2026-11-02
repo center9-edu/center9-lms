@@ -17,7 +17,7 @@ export default defineConfig([
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [{ group: ['@center9/database', '@prisma/*'], message: 'apps/web phải gọi API, không truy cập database trực tiếp.' }] },
+        { patterns: [{ group: ['@center9/database', '@prisma/*'], message: 'apps/web must call the API, not access the database directly.' }] },
       ],
     },
   },

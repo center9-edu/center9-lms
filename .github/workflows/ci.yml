@@ -52,8 +52,8 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-      - name: Áp dụng migration lên database mới
+      - name: Apply migrations to a fresh database
         run: pnpm db:migrate:deploy
 
-      - name: Kiểm tra schema.prisma khớp với migrations
+      - name: Check that schema.prisma matches the migrations
         run: pnpm --filter @center9/database exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
