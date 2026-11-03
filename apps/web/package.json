@@ -10,6 +10,10 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/view": "^6.43.15",
+    "codemirror": "^6.0.2",
     "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

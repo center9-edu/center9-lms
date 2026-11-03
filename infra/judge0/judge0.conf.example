@@ -1,0 +1,16 @@
+# Settings to change in the judge0.conf shipped with the Judge0 CE v1.13.1 release.
+# Placeholders only. Never commit real values.
+
+# Without these, anyone who reaches the port can run code and delete submissions.
+AUTHN_TOKEN=<long-random-value>
+AUTHZ_TOKEN=<another-long-random-value>
+
+# Submitted code must not reach the internet, and clients must not be able to turn that on.
+ENABLE_NETWORK=false
+ALLOW_ENABLE_NETWORK=false
+
+# Judge0 has no retention setting. The API deletes each submission after grading.
+ENABLE_SUBMISSION_DELETE=true
+
+# The users are minors. Read TELEMETRY.md in the Judge0 repository and keep this off.
+JUDGE0_TELEMETRY_ENABLE=false

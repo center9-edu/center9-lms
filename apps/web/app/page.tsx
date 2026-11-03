@@ -17,7 +17,7 @@ async function isApiReady(): Promise<boolean> {
 export default async function HomePage() {
   const ready = await isApiReady();
   return (
-    <main>
+    <main style={{ margin: '2rem' }}>
       <h1>Center9Edu LMS</h1>
       <p>Trạng thái hệ thống: {ready ? 'API và database sẵn sàng' : 'Không kết nối được API hoặc database'}</p>
     </main>

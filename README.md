@@ -53,6 +53,11 @@ Check that it works:
 
 Stop the database: `pnpm db:down` (data stays in the `center9-lms_postgres-data` Docker volume).
 
+### Coding practice (`/luyen-tap`)
+
+Add `JUDGE0_URL=http://127.0.0.1:2358` to `.env`, run `pnpm judge0:fake` next to `pnpm dev`, then open <http://localhost:3000/luyen-tap>.
+The practice pages do not query the database. Read [`infra/judge0/README.md`](infra/judge0/README.md) first: the fake has no sandbox, and a real Judge0 must be verified before any public release.
+
 ## Scripts (run from the repository root)
 
 | Command                  | Description                                                           |
@@ -67,6 +72,7 @@ Stop the database: `pnpm db:down` (data stays in the `center9-lms_postgres-data`
 | `pnpm db:migrate:dev`    | Create a new migration from `schema.prisma` changes (local only)      |
 | `pnpm db:migrate:deploy` | Apply committed migrations (for CI, staging, production)              |
 | `pnpm db:migrate:status` | Show migration status                                                 |
+| `pnpm judge0:fake`       | Local stand-in for Judge0. **No sandbox: never deploy or expose it**  |
 
 ## Changing the database
 
@@ -85,6 +91,9 @@ CI checks that migrations apply to a fresh database and that `schema.prisma` has
 | `DATABASE_URL`      | Prisma CLI, API          | Required by the API                                             |
 | `PORT`              | API                      | Defaults to `3001`                                              |
 | `API_URL`           | Web (server-side)        | Defaults to `http://localhost:3001`; **must be set** on deploy  |
+| `JUDGE0_URL`        | API                      | Without it, code runs return `503`. See `infra/judge0/README.md` |
+| `JUDGE0_AUTHN_TOKEN`, `JUDGE0_AUTHZ_TOKEN` | API | Required for a real Judge0 instance; the local fake ignores them |
+| `TRIAL_SIGNUP_URL`  | Web (server-side)        | Target of the signup button on `/luyen-tap`; hidden when unset  |
 
 Local PostgreSQL settings are fixed in `infra/docker/compose.yaml` (port `5433`), not read from `.env`. The default `DATABASE_URL` in `.env.example` matches them.
 

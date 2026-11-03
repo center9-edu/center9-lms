@@ -36,6 +36,19 @@ Browser ──HTTP──▶ apps/web (Next.js) ──HTTP──▶ apps/api (Nes
 | Roles are an enum, permissions live in code | `SUPER_ADMIN`, `CENTER_ADMIN`, `SALES`, `TEACHER`, `STUDENT`, `PARENT`. There are no `roles`/`permissions` tables because permissions do not need to change at runtime yet. An assistant is a `TEACHER` with `class_teachers.role_in_class = ASSISTANT`. |
 | Lessons are divided into parts | `lessons.part_count` sets the number of parts in the curriculum. `class_session_lessons` links sessions and lessons many-to-many, and each row records a `part_number`. |
 | One enrollment row per student and class | `DROPPED` means the student really left and cannot return to the class. `REMOVED` means taken off the class (for example by mistake); restoring reuses the same row, so attendance is kept. |
+| Judge0 runs student code | Self-hosted on a dedicated VM, reachable only from `apps/api`. Local development uses an unsandboxed fake, and the real instance has not been verified yet; see [`infra/judge0/README.md`](../../infra/judge0/README.md). |
+| Public `/luyen-tap` demo lives in the LMS | An exception to "marketing lives in `center9-website`": the landing page links here so the demo can grow into the LMS. It runs without login because auth does not exist yet, and it is limited by IP and by concurrent runs in memory, which is only correct for one API instance. |
+| Practice problems live in code | `apps/api/src/coding-practice/problems.ts`, with no tables or stored results, so the demo keeps no student data. Add the planned code grading tables when teachers need to author problems or results must be saved. |
+
+## Coding practice flow
+
+```text
+center9-website ──link──▶ apps/web /luyen-tap ──server action──▶ apps/api ──HTTP──▶ Judge0
+```
+
+- **Rate limiting:** `apps/web` forwards the client IP as `X-Client-Ip`. The API must therefore be reachable only from `apps/web`, and the proxy in front of `apps/web` must overwrite `X-Forwarded-For`, or clients could forge their IP.
+- **Privacy:** submitted code can contain personal information. The API does not log or store it, and deletes each submission from Judge0 after grading.
+- **Hidden tests:** responses contain only their verdict, never their input or output.
 
 ## Migrations
 
