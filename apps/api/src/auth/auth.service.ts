@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Role, User } from '@center9/database';
 import { PrismaService } from '../prisma.service.js';
 import type { AuthContext, LoginResultDto, SessionUserDto } from './auth.dto.js';
@@ -84,6 +84,30 @@ export class AuthService {
       if (count > 0) {
         await tx.auditLog.create({ data: { actorId: user.id, action: 'auth.logout', entityType: 'user', entityId: user.id } });
       }
+    });
+  }
+
+  /** Also ends the user's other sessions, so a leaked password stops working everywhere else. */
+  async changePassword({ sessionId, user }: AuthContext, currentPassword: string, newPassword: string): Promise<void> {
+    const account = await this.prisma.user.findUnique({ where: { id: user.id } });
+    if (!account) {
+      throw new NotFoundException();
+    }
+    if (!(await verifyPassword(currentPassword, account.passwordHash))) {
+      throw new ForbiddenException('Current password is incorrect');
+    }
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('newPassword must differ from the current password');
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: false } });
+      await tx.authSession.updateMany({
+        where: { userId: user.id, id: { not: sessionId }, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.auditLog.create({ data: { actorId: user.id, action: 'auth.password_changed', entityType: 'user', entityId: user.id } });
     });
   }
 }

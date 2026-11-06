@@ -83,3 +83,24 @@
   opacity: 0.7;
   cursor: progress;
 }
+
+.hint {
+  margin: -0.5rem 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.footer {
+  margin-top: 1.25rem;
+  text-align: center;
+}
+
+.footer .linkButton {
+  padding: 0;
+  border: 0;
+  color: var(--primary);
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { AuthSession, Role, User, UserStatus } from '@center9/database';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../prisma.service.js';
+import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
-import { hashPassword } from './password.js';
+import { hashPassword, verifyPassword } from './password.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const PASSWORD = 'mat-khau-dung';
@@ -35,7 +36,13 @@ function fakePrisma(users: FakeUser[]) {
   const audit: unknown[] = [];
   const prisma = {
     user: {
-      findUnique: vi.fn(async ({ where }: { where: { username: string } }) => users.find((u) => u.username === where.username) ?? null),
+      findUnique: vi.fn(
+        async ({ where }: { where: { username?: string; id?: string } }) =>
+          users.find((u) => u.username === where.username || u.id === where.id) ?? null,
+      ),
+      update: vi.fn(async ({ where, data }: { where: { id: string }; data: Partial<User> }) =>
+        Object.assign(users.find((u) => u.id === where.id)!, data),
+      ),
     },
     authSession: {
       create: vi.fn(async ({ data }: { data: Pick<AuthSession, 'userId' | 'tokenHash' | 'expiresAt'> }) => {
@@ -50,11 +57,18 @@ function fakePrisma(users: FakeUser[]) {
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Partial<AuthSession> }) =>
         Object.assign(sessions.find((s) => s.id === where.id)!, data),
       ),
-      updateMany: vi.fn(async ({ where, data }: { where: { id: string; revokedAt: null }; data: Partial<AuthSession> }) => {
-        const matched = sessions.filter((s) => s.id === where.id && s.revokedAt === null);
+      updateMany: vi.fn(
+        async ({ where, data }: { where: { id?: string | { not: string }; userId?: string; revokedAt: null }; data: Partial<AuthSession> }) => {
+        const matched = sessions.filter(
+          (s) =>
+            s.revokedAt === null &&
+            (where.userId === undefined || s.userId === where.userId) &&
+            (typeof where.id === 'string' ? s.id === where.id : where.id === undefined || s.id !== where.id.not),
+        );
         matched.forEach((s) => Object.assign(s, data));
         return { count: matched.length };
-      }),
+      },
+      ),
     },
     auditLog: { create: vi.fn(async ({ data }: { data: unknown }) => audit.push(data)) },
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
@@ -187,5 +201,63 @@ describe('AuthService.logout', () => {
     expect(sessions[0].revokedAt).toBeInstanceOf(Date);
     await expect(service.findSessionUser(token)).resolves.toBeNull();
     expect(audit.filter((entry) => (entry as { action: string }).action === 'auth.logout')).toHaveLength(1);
+  });
+});
+
+describe('AuthService.changePassword', () => {
+  const NEW_PASSWORD = 'mat-khau-moi-456';
+
+  async function twoSessions(overrides: Partial<FakeUser> = {}) {
+    const user = makeUser(overrides);
+    const fake = fakePrisma([user]);
+    const current = (await fake.service.findSessionUser((await fake.service.login('gv.lan', PASSWORD)).token))!;
+    const otherToken = (await fake.service.login('gv.lan', PASSWORD)).token;
+    return { ...fake, user, current, otherToken };
+  }
+
+  it('sets the new password, clears mustChangePassword and signs out other sessions only', async () => {
+    const { service, user, current, otherToken, sessions, audit } = await twoSessions({ mustChangePassword: true });
+
+    await service.changePassword(current, PASSWORD, NEW_PASSWORD);
+
+    await expect(verifyPassword(NEW_PASSWORD, user.passwordHash)).resolves.toBe(true);
+    expect(user.mustChangePassword).toBe(false);
+    expect(sessions.find((s) => s.id === current.sessionId)?.revokedAt).toBeNull();
+    await expect(service.findSessionUser(otherToken)).resolves.toBeNull();
+    expect(audit).toContainEqual({ actorId: user.id, action: 'auth.password_changed', entityType: 'user', entityId: user.id });
+  });
+
+  it('requires the current password', async () => {
+    const { service, user, current } = await twoSessions();
+    await expect(service.changePassword(current, 'sai', NEW_PASSWORD)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(verifyPassword(PASSWORD, user.passwordHash)).resolves.toBe(true);
+  });
+
+  it('refuses to keep the same password', async () => {
+    const { service, current } = await twoSessions({ mustChangePassword: true });
+    await expect(service.changePassword(current, PASSWORD, PASSWORD)).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('AuthController.changePassword', () => {
+  const session = { sessionId: 's1', user: { id: 'u1', username: 'a', fullName: 'A', roles: [], mustChangePassword: true } };
+
+  it('validates the body before calling the service', async () => {
+    const changePassword = vi.fn(async () => undefined);
+    const controller = new AuthController({ changePassword } as unknown as AuthService);
+
+    for (const body of [
+      undefined,
+      { currentPassword: 'x' },
+      { currentPassword: 'x', newPassword: 'short7!' },
+      { currentPassword: 'x', newPassword: 'x'.repeat(129) },
+      { currentPassword: 42, newPassword: 'long-enough' },
+    ]) {
+      expect(() => controller.changePassword(session, body)).toThrow(BadRequestException);
+    }
+    expect(changePassword).not.toHaveBeenCalled();
+
+    await controller.changePassword(session, { currentPassword: 'x', newPassword: '8 chars!' });
+    expect(changePassword).toHaveBeenCalledWith(session, 'x', '8 chars!');
   });
 });

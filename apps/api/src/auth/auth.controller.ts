@@ -3,9 +3,10 @@ import { AllowPendingPasswordChange, CurrentSession, Public } from './auth.decor
 import type { AuthContext, LoginResultDto, SessionUserDto } from './auth.dto.js';
 import { AuthService } from './auth.service.js';
 
-// Sanity bounds, not a password policy: they cap the work scrypt does for one request.
+// The upper bounds also cap the work scrypt does for one request.
 const MAX_USERNAME_LENGTH = 100;
 const MAX_PASSWORD_LENGTH = 128;
+const MIN_NEW_PASSWORD_LENGTH = 8;
 
 function parseLoginRequest(body: unknown): { username: string; password: string } {
   const { username, password } = (body ?? {}) as Record<string, unknown>;
@@ -16,6 +17,17 @@ function parseLoginRequest(body: unknown): { username: string; password: string 
     throw new BadRequestException(`password must be a non-empty string of at most ${MAX_PASSWORD_LENGTH} characters`);
   }
   return { username, password };
+}
+
+function parseChangePasswordRequest(body: unknown): { currentPassword: string; newPassword: string } {
+  const { currentPassword, newPassword } = (body ?? {}) as Record<string, unknown>;
+  if (typeof currentPassword !== 'string' || currentPassword === '' || currentPassword.length > MAX_PASSWORD_LENGTH) {
+    throw new BadRequestException(`currentPassword must be a non-empty string of at most ${MAX_PASSWORD_LENGTH} characters`);
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < MIN_NEW_PASSWORD_LENGTH || newPassword.length > MAX_PASSWORD_LENGTH) {
+    throw new BadRequestException(`newPassword must be ${MIN_NEW_PASSWORD_LENGTH} to ${MAX_PASSWORD_LENGTH} characters long`);
+  }
+  return { currentPassword, newPassword };
 }
 
 @Controller('auth')
@@ -41,5 +53,13 @@ export class AuthController {
   @HttpCode(204)
   logout(@CurrentSession() session: AuthContext): Promise<void> {
     return this.auth.logout(session);
+  }
+
+  @AllowPendingPasswordChange()
+  @Post('password')
+  @HttpCode(204)
+  changePassword(@CurrentSession() session: AuthContext, @Body() body: unknown): Promise<void> {
+    const { currentPassword, newPassword } = parseChangePasswordRequest(body);
+    return this.auth.changePassword(session, currentPassword, newPassword);
   }
 }

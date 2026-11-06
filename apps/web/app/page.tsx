@@ -27,7 +27,7 @@ export default async function HomePage() {
       {user ? (
         <form action={logout}>
           <p>
-            Xin chào, {user.fullName}. <button type="submit">Đăng xuất</button>
+            Xin chào, {user.fullName}. <Link href="/doi-mat-khau">Đổi mật khẩu</Link> <button type="submit">Đăng xuất</button>
           </p>
         </form>
       ) : (
