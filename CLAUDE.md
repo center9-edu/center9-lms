@@ -279,7 +279,8 @@ The LMS stores personal data of children and teenagers. Treat it with care.
 - Do not expose server-only environment variables to client components.
 - Health endpoints return status only — no versions, hostnames, or error details.
 - Keep the local database bound to `127.0.0.1`.
-- Authentication and authorization are not implemented yet. Do not add an ad-hoc version; the design needs approval first.
+- Every API endpoint requires a session unless it is marked `@Public()`; restrict by role with `@Roles(...)`. Do not add another authentication mechanism, and do not mark an endpoint `@Public()` without approval. See the authentication section of [`docs/architecture/README.md`](docs/architecture/README.md).
+- In `apps/web`, protect pages with `requireUser()` from `app/lib/session.ts` and call the API through `apiFetch()`, which forwards the session. The session token stays in an httpOnly cookie and never reaches client components.
 - Do not bypass security checks to make a feature work.
 
 ## 12. AI Assistant Rules
