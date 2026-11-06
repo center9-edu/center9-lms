@@ -149,5 +149,5 @@ These are not built yet. They are proposals, and each area needs the approval sh
 | Assignments and manual grading | `assignments`, `class_assignments`, `submissions`, `grades` | Nothing further |
 | Files | `files`, `lesson_files`, `submission_files` | Approval for S3 |
 | Tuition | `invoices`, `invoice_items`, `payments` | Confirmed tuition rules |
-| Code grading | `coding_problems`, `test_cases`, `test_case_results` | Approval for a code runner |
+| Code grading | `coding_problems`, `test_cases`, `test_case_results` | A need to author problems or save results; the `/luyen-tap` demo keeps its problems in code |
 | Notifications | `notifications` | A first feature that sends them |

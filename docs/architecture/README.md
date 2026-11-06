@@ -32,10 +32,46 @@ Browser ──HTTP──▶ apps/web (Next.js) ──HTTP──▶ apps/api (Nes
 | Vitest for the API | The NestJS 12 default; fast, with built-in ESM support. |
 | One ESLint config at the root | One `pnpm lint` command for the whole repository; Next.js rules apply only to `apps/web`. |
 | PostgreSQL 18, bound to `127.0.0.1` | The latest stable release; the database port is not exposed to the LAN. |
-| Server-side sessions for login | A random token, with only its hash stored in `auth_sessions`, so sessions can be revoked immediately. Only the schema exists so far; there is no login code yet. |
+| Server-side sessions for login | A random token, with only its SHA-256 hash stored in `auth_sessions`, so sessions can be revoked immediately. See [Authentication and authorization](#authentication-and-authorization). |
 | Roles are an enum, permissions live in code | `SUPER_ADMIN`, `CENTER_ADMIN`, `SALES`, `TEACHER`, `STUDENT`, `PARENT`. There are no `roles`/`permissions` tables because permissions do not need to change at runtime yet. An assistant is a `TEACHER` with `class_teachers.role_in_class = ASSISTANT`. |
 | Lessons are divided into parts | `lessons.part_count` sets the number of parts in the curriculum. `class_session_lessons` links sessions and lessons many-to-many, and each row records a `part_number`. |
 | One enrollment row per student and class | `DROPPED` means the student really left and cannot return to the class. `REMOVED` means taken off the class (for example by mistake); restoring reuses the same row, so attendance is kept. |
+| Judge0 runs student code | Self-hosted on a dedicated VM, reachable only from `apps/api`. Local development uses an unsandboxed fake, and the real instance has not been verified yet; see [`infra/judge0/README.md`](../../infra/judge0/README.md). |
+| Public `/luyen-tap` demo lives in the LMS | An exception to "marketing lives in `center9-website`": the landing page links here so the demo can grow into the LMS. It stays public (`@Public()`) so the landing page can link to it without an account, and it is limited by IP and by concurrent runs in memory, which is only correct for one API instance. |
+| Practice problems live in code | `apps/api/src/coding-practice/problems.ts`, with no tables or stored results, so the demo keeps no student data. Add the planned code grading tables when teachers need to author problems or results must be saved. |
+
+## Authentication and authorization
+
+```text
+Browser ──cookie c9_session (httpOnly)──▶ apps/web ──Authorization: Bearer <token>──▶ apps/api AuthGuard ──▶ auth_sessions
+```
+
+| Decision | Reason |
+| --- | --- |
+| The browser only talks to `apps/web` | `apps/web` keeps the session token in an httpOnly, `SameSite=Lax` cookie (`Secure` in production) and forwards it as a Bearer token. Client components never see it; Server Actions reject foreign origins. |
+| Default deny | A global `AuthGuard` (`APP_GUARD`) requires a session on every endpoint unless it is marked `@Public()`. `@Roles(...)` restricts by role. `auth.module.spec.ts` fails if the guard is unwired. |
+| Session lifetime | Ends after 7 idle days, extended at most once a day while used, and never more than 30 days after login. Roles and account status are read on every request, so changes apply at once. |
+| Passwords hashed with `node:crypto` scrypt | No new dependency. N=2^15, r=8, p=3 (an OWASP option, ~32 MiB, ~180 ms). Parameters are stored in each hash, so they can be raised later. |
+| Accounts are created by admins | No sign-up. New accounts and password resets get a temporary password shown once; until it is changed, only `/auth/me`, `/auth/logout` and `/auth/password` (`@AllowPendingPasswordChange()`) work. The first `SUPER_ADMIN` comes from the `create-super-admin` script. |
+| Login throttling in memory | 5 failed logins per username and IP, and 50 per IP, block for 15 minutes; checked before scrypt runs. Like the `/luyen-tap` limits, this is only correct for one API instance. |
+| No user enumeration | Unknown usernames are checked against a dummy hash and get the same 401 as a wrong password. A locked account is only reported after the right password. |
+
+Rules for account administration (`/users`, `apps/api/src/users/`):
+
+- `SUPER_ADMIN` and `CENTER_ADMIN` manage accounts. Only a `SUPER_ADMIN` grants `SUPER_ADMIN`/`CENTER_ADMIN` or changes an account that holds one.
+- Nobody changes their own account through `/users`; they use `/auth/password`.
+- At least one active `SUPER_ADMIN` must remain. Changes run in serializable transactions so two admins cannot demote each other at once; the loser gets `409`.
+- Password resets and locks revoke the user's sessions. Every change is written to `audit_logs` with role and status values only.
+
+## Coding practice flow
+
+```text
+center9-website ──link──▶ apps/web /luyen-tap ──server action──▶ apps/api ──HTTP──▶ Judge0
+```
+
+- **Rate limiting:** `apps/web` forwards the client IP as `X-Client-Ip`. The API must therefore be reachable only from `apps/web`, and the proxy in front of `apps/web` must overwrite `X-Forwarded-For`, or clients could forge their IP.
+- **Privacy:** submitted code can contain personal information. The API does not log or store it, and deletes each submission from Judge0 after grading.
+- **Hidden tests:** responses contain only their verdict, never their input or output.
 
 ## Migrations
 

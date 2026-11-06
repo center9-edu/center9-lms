@@ -1,6 +1,8 @@
 import { Controller, Get, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators.js';
 import { PrismaService } from '../prisma.service.js';
 
+@Public()
 @Controller('health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);

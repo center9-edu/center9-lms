@@ -8,7 +8,8 @@
     "build": "nest build",
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "create-super-admin": "node --env-file-if-exists=../../.env dist/scripts/create-super-admin.js"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.11",

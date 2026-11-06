@@ -132,6 +132,7 @@ Follow these rules:
 - Import workspace packages by name (`@center9/database`), never by relative path into another package.
 - Use only a package's public entry point; do not deep-import its internal files.
 - Inside `apps/api`, a feature module must not import another feature's internal files; use the exported service of that module.
+  Exception: `apps/api/src/auth/auth.decorators.ts` (`@Public`, `@Roles`, `@AllowPendingPasswordChange`, `@CurrentSession`) is the auth module's public API; every module may import it.
 - Avoid circular dependencies.
 
 ## 6. Commands
@@ -228,6 +229,10 @@ Keep commits focused and descriptive. A schema change and its migration belong i
 
 Do not commit, push, force-push, create pull requests, or modify remote branches unless explicitly requested.
 
+AI assistants never commit on their own, even when a skill or workflow (for example `/build`) includes a commit step. Leave changes uncommitted for human review, and commit only when the user asks for it in their current message.
+
+Planning artifacts (`tasks/`, for example `tasks/plan.md` and `tasks/todo.md`) are local working files: they are gitignored and must not be committed.
+
 ### Protected Branches
 
 `main`, `staging`, and `dev` are protected. Changes reach them only through pull requests.
@@ -274,7 +279,8 @@ The LMS stores personal data of children and teenagers. Treat it with care.
 - Do not expose server-only environment variables to client components.
 - Health endpoints return status only — no versions, hostnames, or error details.
 - Keep the local database bound to `127.0.0.1`.
-- Authentication and authorization are not implemented yet. Do not add an ad-hoc version; the design needs approval first.
+- Every API endpoint requires a session unless it is marked `@Public()`; restrict by role with `@Roles(...)`. Do not add another authentication mechanism, and do not mark an endpoint `@Public()` without approval. See the authentication section of [`docs/architecture/README.md`](docs/architecture/README.md).
+- In `apps/web`, protect pages with `requireUser()` from `app/lib/session.ts` and call the API through `apiFetch()`, which forwards the session. The session token stays in an httpOnly cookie and never reaches client components.
 - Do not bypass security checks to make a feature work.
 
 ## 12. AI Assistant Rules

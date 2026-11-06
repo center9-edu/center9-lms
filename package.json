@@ -18,7 +18,8 @@
     "db:generate": "pnpm --filter @center9/database build",
     "db:migrate:dev": "pnpm --filter @center9/database migrate:dev",
     "db:migrate:deploy": "pnpm --filter @center9/database migrate:deploy",
-    "db:migrate:status": "pnpm --filter @center9/database migrate:status"
+    "db:migrate:status": "pnpm --filter @center9/database migrate:status",
+    "judge0:fake": "node infra/judge0/fake-judge0.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
