@@ -7,7 +7,7 @@ Chi tiết và acceptance criteria: [plan.md](plan.md).
 - [x] T3. Web `/dang-nhap`, đăng xuất, `lib/api.ts`, `lib/session.ts` (DAL)
   - `requireUser()` dời sang T6: `/doi-mat-khau` không dùng được nó (sẽ tự redirect về chính nó), `/quan-tri` là trang đầu tiên cần
 - [x] T4. Đổi mật khẩu (bắt buộc khi `mustChangePassword`) — API + `/doi-mat-khau`
-- [ ] T5. Chặn tạm 15 phút sau 5 lần sai (username + IP)
+- [x] T5. Chặn tạm 15 phút sau 5 lần sai (username + IP)
 - [ ] **Checkpoint A:** lint/typecheck/test/build xanh, review bảo mật, user duyệt
 - [ ] T6. Users API list/create + `/quan-tri/tai-khoan`
 - [ ] T7. Reset mật khẩu, sửa roles, khoá/mở tài khoản + revoke session + audit

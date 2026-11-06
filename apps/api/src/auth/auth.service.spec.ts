@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, UnauthorizedException } from '@nestjs/common';
 import type { AuthSession, Role, User, UserStatus } from '@center9/database';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../prisma.service.js';
@@ -89,7 +89,7 @@ describe('AuthService.login', () => {
     const user = makeUser();
     const { service, sessions, audit } = fakePrisma([user]);
 
-    const result = await service.login('  GV.Lan ', PASSWORD);
+    const result = await service.login('  GV.Lan ', PASSWORD, '192.0.2.1');
 
     expect(result.user).toEqual({
       id: user.id,
@@ -108,8 +108,8 @@ describe('AuthService.login', () => {
 
   it('gives the same 401 for an unknown user and a wrong password', async () => {
     const { service, sessions } = fakePrisma([makeUser()]);
-    const unknown = await service.login('nobody', PASSWORD).catch((e: unknown) => e);
-    const wrong = await service.login('gv.lan', 'sai').catch((e: unknown) => e);
+    const unknown = await service.login('nobody', PASSWORD, '192.0.2.1').catch((e: unknown) => e);
+    const wrong = await service.login('gv.lan', 'sai', '192.0.2.1').catch((e: unknown) => e);
 
     expect(unknown).toBeInstanceOf(UnauthorizedException);
     expect(wrong).toBeInstanceOf(UnauthorizedException);
@@ -119,8 +119,8 @@ describe('AuthService.login', () => {
 
   it('reveals an inactive account only after the right password', async () => {
     const { service, sessions } = fakePrisma([makeUser({ status: 'LOCKED' })]);
-    await expect(service.login('gv.lan', 'sai')).rejects.toBeInstanceOf(UnauthorizedException);
-    await expect(service.login('gv.lan', PASSWORD)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.login('gv.lan', 'sai', '192.0.2.1')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.login('gv.lan', PASSWORD, '192.0.2.1')).rejects.toBeInstanceOf(ForbiddenException);
     expect(sessions).toHaveLength(0);
   });
 });
@@ -129,7 +129,7 @@ describe('AuthService.findSessionUser', () => {
   async function loggedIn(overrides: Partial<FakeUser> = {}) {
     const user = makeUser(overrides);
     const fake = fakePrisma([user]);
-    const { token } = await fake.service.login('gv.lan', PASSWORD);
+    const { token } = await fake.service.login('gv.lan', PASSWORD, '192.0.2.1');
     return { ...fake, user, token, session: fake.sessions[0] };
   }
 
@@ -192,7 +192,7 @@ describe('AuthService.logout', () => {
   it('revokes the session once and records it', async () => {
     const user = makeUser();
     const { service, sessions, audit } = fakePrisma([user]);
-    const { token } = await service.login('gv.lan', PASSWORD);
+    const { token } = await service.login('gv.lan', PASSWORD, '192.0.2.1');
     const context = (await service.findSessionUser(token))!;
 
     await service.logout(context);
@@ -210,8 +210,8 @@ describe('AuthService.changePassword', () => {
   async function twoSessions(overrides: Partial<FakeUser> = {}) {
     const user = makeUser(overrides);
     const fake = fakePrisma([user]);
-    const current = (await fake.service.findSessionUser((await fake.service.login('gv.lan', PASSWORD)).token))!;
-    const otherToken = (await fake.service.login('gv.lan', PASSWORD)).token;
+    const current = (await fake.service.findSessionUser((await fake.service.login('gv.lan', PASSWORD, '192.0.2.1')).token))!;
+    const otherToken = (await fake.service.login('gv.lan', PASSWORD, '192.0.2.1')).token;
     return { ...fake, user, current, otherToken };
   }
 
@@ -259,5 +259,73 @@ describe('AuthController.changePassword', () => {
 
     await controller.changePassword(session, { currentPassword: 'x', newPassword: '8 chars!' });
     expect(changePassword).toHaveBeenCalledWith(session, 'x', '8 chars!');
+  });
+});
+
+describe('AuthService.login throttling', () => {
+  const IP = '203.0.113.7';
+  const MINUTE = 60_000;
+  const status = (error: unknown) => (error instanceof HttpException ? error.getStatus() : error);
+  const attempt = (service: AuthService, password: string, username = 'gv.lan', ip = IP) =>
+    service.login(username, password, ip).then(
+      () => 200,
+      (error: unknown) => status(error),
+    );
+
+  it('blocks a username and IP for 15 minutes after 5 failures, even with the right password', async () => {
+    const { service } = fakePrisma([makeUser()]);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const start = Date.now();
+
+    for (let i = 0; i < 5; i++) {
+      expect(await attempt(service, 'sai')).toBe(401);
+    }
+    expect(await attempt(service, PASSWORD)).toBe(429);
+
+    vi.setSystemTime(start + 14 * MINUTE);
+    expect(await attempt(service, PASSWORD)).toBe(429);
+    vi.setSystemTime(start + 15 * MINUTE);
+    expect(await attempt(service, PASSWORD)).toBe(200);
+  });
+
+  it('counts username and IP together, case-insensitively, and unknown usernames too', async () => {
+    const { service } = fakePrisma([makeUser()]);
+    for (let i = 0; i < 5; i++) {
+      await attempt(service, 'sai', i % 2 ? 'GV.LAN' : 'gv.lan');
+      await attempt(service, 'sai', 'nobody');
+    }
+    expect(await attempt(service, PASSWORD)).toBe(429);
+    expect(await attempt(service, 'sai', 'nobody')).toBe(429);
+    expect(await attempt(service, PASSWORD, 'gv.lan', '198.51.100.1')).toBe(200);
+  });
+
+  it('resets the count after a successful login', async () => {
+    const { service } = fakePrisma([makeUser()]);
+    for (let i = 0; i < 4; i++) {
+      await attempt(service, 'sai');
+    }
+    expect(await attempt(service, PASSWORD)).toBe(200);
+    for (let i = 0; i < 4; i++) {
+      expect(await attempt(service, 'sai')).toBe(401);
+    }
+    expect(await attempt(service, PASSWORD)).toBe(200);
+  });
+
+  it('counts concurrent attempts, so parallel guesses cannot skip the limit', async () => {
+    const { service } = fakePrisma([makeUser()]);
+    const results = await Promise.all(Array.from({ length: 12 }, () => attempt(service, 'sai')));
+    expect(results.filter((code) => code === 401)).toHaveLength(5);
+    expect(results.filter((code) => code === 429)).toHaveLength(7);
+  });
+
+  it('keeps memory bounded when flooded with usernames', async () => {
+    const { service } = fakePrisma([]);
+    const tracked = (service as unknown as { failedLogins: Map<string, unknown> }).failedLogins;
+    vi.spyOn(service as unknown as { checkPassword: () => Promise<boolean> }, 'checkPassword').mockResolvedValue(false);
+
+    for (let i = 0; i < 10_050; i++) {
+      await attempt(service, 'sai', `user${i}`);
+    }
+    expect(tracked.size).toBeLessThanOrEqual(10_000);
   });
 });

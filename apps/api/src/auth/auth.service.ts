@@ -1,5 +1,13 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Role, User } from '@center9/database';
 import { PrismaService } from '../prisma.service.js';
 import type { AuthContext, LoginResultDto, SessionUserDto } from './auth.dto.js';
@@ -14,6 +22,11 @@ const SESSION_MAX_AGE_MS = 30 * DAY_MS;
 const SESSION_EXTEND_BELOW_MS = 6 * DAY_MS;
 
 const INVALID_CREDENTIALS = 'Invalid username or password';
+
+/** After this many failed attempts for one username and IP, logins are refused for FAILED_LOGIN_BLOCK_MS. */
+const MAX_FAILED_LOGINS = 5;
+const FAILED_LOGIN_BLOCK_MS = 15 * 60 * 1000;
+const MAX_TRACKED_LOGINS = 10_000;
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
@@ -33,18 +46,28 @@ function toSessionUser(user: UserWithRoles): SessionUserDto {
 export class AuthService {
   // Checked against unknown usernames, so a login takes as long whether or not the account exists.
   private readonly dummyHash = hashPassword(randomUUID());
+  // ponytail: in memory, so only correct for one API instance (like the /luyen-tap limits); move to a shared store when scaling out.
+  // Keyed by username and IP together, so nobody can lock a student out from another network.
+  private readonly failedLogins = new Map<string, { count: number; since: number }>();
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async login(username: string, password: string): Promise<LoginResultDto> {
+  async login(username: string, password: string, clientIp: string): Promise<LoginResultDto> {
+    const normalizedUsername = username.trim().toLowerCase();
+    const throttleKey = `${normalizedUsername}\n${clientIp}`;
+    this.assertNotThrottled(throttleKey);
+    // Counted before any await, so parallel requests cannot all slip under the limit. Cleared on success.
+    this.recordLoginAttempt(throttleKey);
+
     const user = await this.prisma.user.findUnique({
-      where: { username: username.trim().toLowerCase() },
+      where: { username: normalizedUsername },
       include: { roles: true },
     });
-    const passwordMatches = await verifyPassword(password, user?.passwordHash ?? (await this.dummyHash));
+    const passwordMatches = await this.checkPassword(password, user?.passwordHash ?? (await this.dummyHash));
     if (!user || !passwordMatches) {
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
+    this.failedLogins.delete(throttleKey);
     if (user.status !== 'ACTIVE') {
       throw new ForbiddenException('Account is not active');
     }
@@ -109,5 +132,44 @@ export class AuthService {
       });
       await tx.auditLog.create({ data: { actorId: user.id, action: 'auth.password_changed', entityType: 'user', entityId: user.id } });
     });
+  }
+
+  /** Separate so tests can skip scrypt when they need thousands of attempts. */
+  private checkPassword(password: string, hash: string): Promise<boolean> {
+    return verifyPassword(password, hash);
+  }
+
+  private assertNotThrottled(key: string): void {
+    const entry = this.failedLogins.get(key);
+    if (entry && Date.now() - entry.since >= FAILED_LOGIN_BLOCK_MS) {
+      this.failedLogins.delete(key);
+    } else if (entry && entry.count >= MAX_FAILED_LOGINS) {
+      throw new HttpException('Too many failed logins', HttpStatus.TOO_MANY_REQUESTS);
+    }
+  }
+
+  private recordLoginAttempt(key: string): void {
+    const now = Date.now();
+    const entry = this.failedLogins.get(key);
+    if (entry) {
+      entry.count += 1;
+      // The block lasts FAILED_LOGIN_BLOCK_MS from the failure that triggered it.
+      if (entry.count >= MAX_FAILED_LOGINS) {
+        entry.since = now;
+      }
+      return;
+    }
+
+    if (this.failedLogins.size >= MAX_TRACKED_LOGINS) {
+      for (const [trackedKey, tracked] of this.failedLogins) {
+        if (now - tracked.since >= FAILED_LOGIN_BLOCK_MS) this.failedLogins.delete(trackedKey);
+      }
+      // Still full of fresh entries (a flood of usernames): drop the oldest. Maps iterate in insertion order.
+      for (const trackedKey of this.failedLogins.keys()) {
+        if (this.failedLogins.size < MAX_TRACKED_LOGINS) break;
+        this.failedLogins.delete(trackedKey);
+      }
+    }
+    this.failedLogins.set(key, { count: 1, since: now });
   }
 }

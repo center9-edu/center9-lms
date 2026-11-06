@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Ip, Post } from '@nestjs/common';
 import { AllowPendingPasswordChange, CurrentSession, Public } from './auth.decorators.js';
 import type { AuthContext, LoginResultDto, SessionUserDto } from './auth.dto.js';
 import { AuthService } from './auth.service.js';
@@ -37,9 +37,14 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  login(@Body() body: unknown): Promise<LoginResultDto> {
+  // x-client-ip is set by apps/web. The API must only be reachable from apps/web, or clients could forge it.
+  login(
+    @Body() body: unknown,
+    @Headers('x-client-ip') forwardedIp: string | undefined,
+    @Ip() connectionIp: string,
+  ): Promise<LoginResultDto> {
     const { username, password } = parseLoginRequest(body);
-    return this.auth.login(username, password);
+    return this.auth.login(username, password, forwardedIp || connectionIp);
   }
 
   @AllowPendingPasswordChange()
