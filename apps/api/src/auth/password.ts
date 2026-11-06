@@ -8,7 +8,6 @@ const BLOCK_SIZE = 8;
 const PARALLELIZATION = 3;
 const KEY_LENGTH = 32;
 const SALT_LENGTH = 16;
-const MAX_MEMORY = 64 * 1024 * 1024;
 
 // No 0/O, 1/l/I: temporary passwords are read aloud or copied by hand by children and parents.
 const TEMPORARY_PASSWORD_ALPHABET = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
@@ -16,7 +15,9 @@ const TEMPORARY_PASSWORD_LENGTH = 12;
 
 function deriveKey(password: string, salt: Buffer, keyLength: number, options: ScryptOptions): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    scrypt(password.normalize('NFC'), salt, keyLength, { ...options, maxmem: MAX_MEMORY }, (error, key) =>
+    // scrypt needs about 128 * N * r bytes; allow twice that so stronger stored parameters keep working.
+    const maxmem = 256 * (options.N ?? COST) * (options.r ?? BLOCK_SIZE);
+    scrypt(password.normalize('NFC'), salt, keyLength, { ...options, maxmem }, (error, key) =>
       error ? reject(error) : resolve(key),
     );
   });

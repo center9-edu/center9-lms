@@ -23,6 +23,13 @@ describe('password', () => {
     await expect(verifyPassword('other', oldHash)).resolves.toBe(false);
   });
 
+  it('verifies hashes made with stronger parameters than today', async () => {
+    const salt = randomBytes(16);
+    const key = scryptSync('future-password', salt, 32, { N: 2 ** 16, r: 8, p: 1, maxmem: 256 * 2 ** 16 * 8 });
+    const futureHash = `scrypt$${2 ** 16}$8$1$${salt.toString('base64url')}$${key.toString('base64url')}`;
+    await expect(verifyPassword('future-password', futureHash)).resolves.toBe(true);
+  });
+
   it('rejects malformed hashes instead of throwing', async () => {
     for (const stored of ['', 'plain-text', 'scrypt$x$8$1$abc$def', 'bcrypt$10$abc', 'scrypt$1024$8$1$abc$!!!']) {
       await expect(verifyPassword('anything', stored)).resolves.toBe(false);
