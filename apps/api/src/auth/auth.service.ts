@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import type { Role, User } from '@center9/database';
 import { PrismaService } from '../prisma.service.js';
+import { AttemptCounter } from './attempt-counter.js';
 import type { AuthContext, LoginResultDto, SessionUserDto } from './auth.dto.js';
 import { hashPassword, verifyPassword } from './password.js';
 
@@ -23,8 +24,10 @@ const SESSION_EXTEND_BELOW_MS = 6 * DAY_MS;
 
 const INVALID_CREDENTIALS = 'Invalid username or password';
 
-/** After this many failed attempts for one username and IP, logins are refused for FAILED_LOGIN_BLOCK_MS. */
-const MAX_FAILED_LOGINS = 5;
+/** Failed logins allowed per username and IP, then per IP across all usernames, before a FAILED_LOGIN_BLOCK_MS block. */
+const MAX_FAILED_LOGINS_PER_ACCOUNT = 5;
+// High enough for a whole class behind one NAT address to mistype a few times.
+const MAX_FAILED_LOGINS_PER_IP = 50;
 const FAILED_LOGIN_BLOCK_MS = 15 * 60 * 1000;
 const MAX_TRACKED_LOGINS = 10_000;
 
@@ -46,28 +49,34 @@ function toSessionUser(user: UserWithRoles): SessionUserDto {
 export class AuthService {
   // Checked against unknown usernames, so a login takes as long whether or not the account exists.
   private readonly dummyHash = hashPassword(randomUUID());
-  // ponytail: in memory, so only correct for one API instance (like the /luyen-tap limits); move to a shared store when scaling out.
   // Keyed by username and IP together, so nobody can lock a student out from another network.
-  private readonly failedLogins = new Map<string, { count: number; since: number }>();
+  private readonly accountAttempts = new AttemptCounter(MAX_FAILED_LOGINS_PER_ACCOUNT, FAILED_LOGIN_BLOCK_MS, MAX_TRACKED_LOGINS);
+  // Stops one address from guessing across many usernames, and from tying up scrypt.
+  private readonly ipAttempts = new AttemptCounter(MAX_FAILED_LOGINS_PER_IP, FAILED_LOGIN_BLOCK_MS, MAX_TRACKED_LOGINS);
 
   constructor(private readonly prisma: PrismaService) {}
 
   async login(username: string, password: string, clientIp: string): Promise<LoginResultDto> {
     const normalizedUsername = username.trim().toLowerCase();
-    const throttleKey = `${normalizedUsername}\n${clientIp}`;
-    this.assertNotThrottled(throttleKey);
-    // Counted before any await, so parallel requests cannot all slip under the limit. Cleared on success.
-    this.recordLoginAttempt(throttleKey);
+    const accountKey = `${normalizedUsername}\n${clientIp}`;
+    if (this.accountAttempts.isBlocked(accountKey) || this.ipAttempts.isBlocked(clientIp)) {
+      throw new HttpException('Too many failed logins', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    // Counted before any await, so parallel requests cannot all slip under the limits. Taken back on success.
+    this.accountAttempts.record(accountKey);
+    this.ipAttempts.record(clientIp);
 
     const user = await this.prisma.user.findUnique({
       where: { username: normalizedUsername },
       include: { roles: true },
     });
-    const passwordMatches = await this.checkPassword(password, user?.passwordHash ?? (await this.dummyHash));
+    const passwordMatches = await verifyPassword(password, user?.passwordHash ?? (await this.dummyHash));
     if (!user || !passwordMatches) {
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
-    this.failedLogins.delete(throttleKey);
+    this.accountAttempts.clear(accountKey);
+    // Only this attempt: clearing the IP count would let one known account reset the limit.
+    this.ipAttempts.forgive(clientIp);
     if (user.status !== 'ACTIVE') {
       throw new ForbiddenException('Account is not active');
     }
@@ -132,44 +141,5 @@ export class AuthService {
       });
       await tx.auditLog.create({ data: { actorId: user.id, action: 'auth.password_changed', entityType: 'user', entityId: user.id } });
     });
-  }
-
-  /** Separate so tests can skip scrypt when they need thousands of attempts. */
-  private checkPassword(password: string, hash: string): Promise<boolean> {
-    return verifyPassword(password, hash);
-  }
-
-  private assertNotThrottled(key: string): void {
-    const entry = this.failedLogins.get(key);
-    if (entry && Date.now() - entry.since >= FAILED_LOGIN_BLOCK_MS) {
-      this.failedLogins.delete(key);
-    } else if (entry && entry.count >= MAX_FAILED_LOGINS) {
-      throw new HttpException('Too many failed logins', HttpStatus.TOO_MANY_REQUESTS);
-    }
-  }
-
-  private recordLoginAttempt(key: string): void {
-    const now = Date.now();
-    const entry = this.failedLogins.get(key);
-    if (entry) {
-      entry.count += 1;
-      // The block lasts FAILED_LOGIN_BLOCK_MS from the failure that triggered it.
-      if (entry.count >= MAX_FAILED_LOGINS) {
-        entry.since = now;
-      }
-      return;
-    }
-
-    if (this.failedLogins.size >= MAX_TRACKED_LOGINS) {
-      for (const [trackedKey, tracked] of this.failedLogins) {
-        if (now - tracked.since >= FAILED_LOGIN_BLOCK_MS) this.failedLogins.delete(trackedKey);
-      }
-      // Still full of fresh entries (a flood of usernames): drop the oldest. Maps iterate in insertion order.
-      for (const trackedKey of this.failedLogins.keys()) {
-        if (this.failedLogins.size < MAX_TRACKED_LOGINS) break;
-        this.failedLogins.delete(trackedKey);
-      }
-    }
-    this.failedLogins.set(key, { count: 1, since: now });
   }
 }

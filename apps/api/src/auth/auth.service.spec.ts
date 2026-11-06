@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { BadRequestException, ForbiddenException, HttpException, UnauthorizedException } from '@nestjs/common';
 import type { AuthSession, Role, User, UserStatus } from '@center9/database';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -12,6 +12,13 @@ const PASSWORD = 'mat-khau-dung';
 let passwordHash: string;
 
 type FakeUser = User & { roles: { role: Role }[] };
+
+/** A valid hash with tiny scrypt parameters, for tests that need many logins. */
+function cheapHash(password: string): string {
+  const salt = randomBytes(16);
+  const key = scryptSync(password, salt, 32, { N: 1024, r: 8, p: 1 });
+  return `scrypt$1024$8$1$${salt.toString('base64url')}$${key.toString('base64url')}`;
+}
 
 function makeUser(overrides: Partial<FakeUser> = {}): FakeUser {
   return {
@@ -318,14 +325,20 @@ describe('AuthService.login throttling', () => {
     expect(results.filter((code) => code === 429)).toHaveLength(7);
   });
 
-  it('keeps memory bounded when flooded with usernames', async () => {
-    const { service } = fakePrisma([]);
-    const tracked = (service as unknown as { failedLogins: Map<string, unknown> }).failedLogins;
-    vi.spyOn(service as unknown as { checkPassword: () => Promise<boolean> }, 'checkPassword').mockResolvedValue(false);
+  it('blocks an IP after 50 failures across any usernames, without resetting on success', async () => {
+    const quick = Array.from({ length: 50 }, (_, i) => makeUser({ username: `hs${i}`, passwordHash: cheapHash(PASSWORD) }));
+    const owner = makeUser({ passwordHash: cheapHash(PASSWORD) });
+    const { service } = fakePrisma([owner, ...quick]);
 
-    for (let i = 0; i < 10_050; i++) {
-      await attempt(service, 'sai', `user${i}`);
+    for (let i = 0; i < 49; i++) {
+      expect(await attempt(service, 'sai', `hs${i}`)).toBe(401);
     }
-    expect(tracked.size).toBeLessThanOrEqual(10_000);
+    // A successful login takes back only its own attempt, so a known account cannot reset the IP limit.
+    expect(await attempt(service, PASSWORD)).toBe(200);
+    expect(await attempt(service, 'sai', 'hs49')).toBe(401);
+
+    expect(await attempt(service, PASSWORD)).toBe(429);
+    expect(await attempt(service, PASSWORD, 'hs0')).toBe(429);
+    expect(await attempt(service, PASSWORD, 'gv.lan', '198.51.100.1')).toBe(200);
   });
 });
