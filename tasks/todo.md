@@ -3,7 +3,7 @@
 Chi tiết và acceptance criteria: [plan.md](plan.md).
 
 - [x] T1. PrismaModule + `auth/password.ts` (scrypt) + script `create-super-admin`
-- [ ] T2. API `/auth/login`, `/auth/logout`, `/auth/me` + global AuthGuard default-deny + `@Public()` cho health/coding-practice
+- [x] T2. API `/auth/login`, `/auth/logout`, `/auth/me` + global AuthGuard default-deny + `@Public()` cho health/coding-practice
 - [ ] T3. Web `/dang-nhap`, đăng xuất, `lib/api.ts`, `lib/session.ts` (DAL)
 - [ ] T4. Đổi mật khẩu (bắt buộc khi `mustChangePassword`) — API + `/doi-mat-khau`
 - [ ] T5. Chặn tạm 15 phút sau 5 lần sai (username + IP)

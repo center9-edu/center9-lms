@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Ip, Param, Post } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators.js';
 import { RUN_MODES } from './coding-practice.dto.js';
 import type { RunMode } from './coding-practice.dto.js';
 import { CodingPracticeService } from './coding-practice.service.js';
@@ -17,6 +18,7 @@ function parseRunRequest(body: unknown): { code: string; mode: RunMode } {
   return { code, mode: runMode };
 }
 
+@Public()
 @Controller('coding-practice/problems')
 export class CodingPracticeController {
   constructor(private readonly practice: CodingPracticeService) {}
