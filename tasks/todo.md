@@ -15,7 +15,7 @@ Chi tiết và acceptance criteria: [plan.md](plan.md).
     - [x] S1. `maxmem` của scrypt tính theo tham số
     - [x] I3. CLAUDE.md §5: decorator auth là API công khai
 - [x] T6. Users API list/create + `/quan-tri/tai-khoan` (kèm `requireUser()` và S4)
-- [ ] T7. Reset mật khẩu, sửa roles, khoá/mở tài khoản + revoke session + audit
+- [x] T7. Reset mật khẩu, sửa roles, khoá/mở tài khoản + revoke session + audit
 - [ ] T8. Cập nhật `docs/architecture/README.md`, `CLAUDE.md` §11, `README.md`
 - [ ] **Checkpoint B:** toàn bộ check xanh, hỏi commit/PR trên branch mới `feat/auth-sessions`
 

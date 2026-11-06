@@ -21,3 +21,8 @@ export interface CreateUserResultDto {
   /** Shown to the admin once; only its hash is stored. */
   temporaryPassword: string;
 }
+
+export interface ResetPasswordResultDto {
+  /** Shown to the admin once; only its hash is stored. */
+  temporaryPassword: string;
+}

@@ -203,3 +203,34 @@
   color: var(--muted);
   font-weight: 600;
 }
+
+.table td.actionsCell {
+  white-space: normal;
+  min-width: 10rem;
+}
+
+.actions summary {
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.actions[open] {
+  min-width: 18rem;
+}
+
+.actions .form {
+  margin-top: 0.75rem;
+}
+
+.field select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+.form button.secondary {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: #fff;
+}

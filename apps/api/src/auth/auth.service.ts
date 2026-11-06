@@ -8,7 +8,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Role, User } from '@center9/database';
+import type { Prisma, Role, User } from '@center9/database';
 import { PrismaService } from '../prisma.service.js';
 import { AttemptCounter } from './attempt-counter.js';
 import type { AuthContext, LoginResultDto, SessionUserDto } from './auth.dto.js';
@@ -147,5 +147,10 @@ export class AuthService {
   async createTemporaryPassword(): Promise<{ password: string; passwordHash: string }> {
     const password = generateTemporaryPassword();
     return { password, passwordHash: await hashPassword(password) };
+  }
+
+  /** Pass the caller's transaction client so revoking commits or rolls back with the rest of the change. */
+  async revokeAllSessions(userId: string, tx: Prisma.TransactionClient = this.prisma): Promise<void> {
+    await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   }
 }

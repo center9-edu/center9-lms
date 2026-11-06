@@ -3,7 +3,9 @@ import styles from '../admin.module.css';
 import { requireUser } from '../../lib/session';
 import type { Role } from '../../lib/session';
 import { CreateUserForm } from './create-user-form';
+import { UserActions } from './user-actions';
 import { ADMIN_ROLES, fetchUsers, ROLE_LABELS, STATUS_LABELS } from './users';
+import type { UserStatus } from './users';
 
 export const metadata: Metadata = {
   title: 'Tài khoản | Center9Edu LMS',
@@ -19,13 +21,19 @@ export default async function AccountsPage() {
     (role) => me.roles.includes('SUPER_ADMIN') || !ADMIN_ROLES.includes(role),
   );
 
+  const isSuperAdmin = me.roles.includes('SUPER_ADMIN');
+  const roleOptions = grantable.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
+  const statusOptions = (Object.keys(STATUS_LABELS) as UserStatus[]).map((status) => ({ value: status, label: STATUS_LABELS[status] }));
+  // Same rules as the API: never your own account, and admin accounts only for a SUPER_ADMIN.
+  const canEdit = (roles: Role[]) => isSuperAdmin || !roles.some((role) => ADMIN_ROLES.includes(role));
+
   return (
     <main className={styles.main}>
       <h1 className={styles.title}>Tài khoản</h1>
 
       <section aria-labelledby="create-heading" className={styles.card}>
         <h2 id="create-heading">Tạo tài khoản</h2>
-        <CreateUserForm roleOptions={grantable.map((role) => ({ value: role, label: ROLE_LABELS[role] }))} />
+        <CreateUserForm roleOptions={roleOptions} />
       </section>
 
       <section aria-labelledby="list-heading" className={styles.card}>
@@ -39,6 +47,7 @@ export default async function AccountsPage() {
                 <th scope="col">Vai trò</th>
                 <th scope="col">Trạng thái</th>
                 <th scope="col">Ngày tạo</th>
+                <th scope="col">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -52,6 +61,15 @@ export default async function AccountsPage() {
                     {user.mustChangePassword && <span className={styles.note}> · chưa đổi mật khẩu tạm</span>}
                   </td>
                   <td>{dateFormat.format(new Date(user.createdAt))}</td>
+                  <td className={styles.actionsCell}>
+                    {user.id === me.id ? (
+                      <span className={styles.note}>Tài khoản của bạn</span>
+                    ) : canEdit(user.roles) ? (
+                      <UserActions user={user} roleOptions={roleOptions} statusOptions={statusOptions} />
+                    ) : (
+                      <span className={styles.note}>Chỉ Quản trị hệ thống</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -351,3 +351,13 @@ describe('AuthService.createTemporaryPassword', () => {
     await expect(verifyPassword(password, passwordHash)).resolves.toBe(true);
   });
 });
+
+describe('AuthService.revokeAllSessions', () => {
+  it('revokes every open session of the user', async () => {
+    const user = makeUser();
+    const { service, prisma } = fakePrisma([user]);
+    const { token } = await service.login('gv.lan', PASSWORD, '192.0.2.1');
+    await service.revokeAllSessions(user.id, prisma as never);
+    await expect(service.findSessionUser(token)).resolves.toBeNull();
+  });
+});
