@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
+import { API_URL } from '../lib/api';
 import type { ProblemDetail, ProblemSummary } from './types';
 
 // Server-only: import this file only from Server Components and Server Actions.
-export const API_URL = process.env.API_URL ?? 'http://localhost:3001';
+export { API_URL };
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { cache: 'no-store', signal: AbortSignal.timeout(3_000) });
