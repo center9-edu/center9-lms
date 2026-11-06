@@ -13,3 +13,6 @@ packages/database/src/generated/
 
 .DS_Store
 *.log
+
+# Local planning artifacts (see CLAUDE.md, Git Conventions)
+tasks/

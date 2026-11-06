@@ -229,6 +229,10 @@ Keep commits focused and descriptive. A schema change and its migration belong i
 
 Do not commit, push, force-push, create pull requests, or modify remote branches unless explicitly requested.
 
+AI assistants never commit on their own, even when a skill or workflow (for example `/build`) includes a commit step. Leave changes uncommitted for human review, and commit only when the user asks for it in their current message.
+
+Planning artifacts (`tasks/`, for example `tasks/plan.md` and `tasks/todo.md`) are local working files: they are gitignored and must not be committed.
+
 ### Protected Branches
 
 `main`, `staging`, and `dev` are protected. Changes reach them only through pull requests.
