@@ -132,6 +132,7 @@ Follow these rules:
 - Import workspace packages by name (`@center9/database`), never by relative path into another package.
 - Use only a package's public entry point; do not deep-import its internal files.
 - Inside `apps/api`, a feature module must not import another feature's internal files; use the exported service of that module.
+  Exception: `apps/api/src/auth/auth.decorators.ts` (`@Public`, `@Roles`, `@AllowPendingPasswordChange`, `@CurrentSession`) is the auth module's public API; every module may import it.
 - Avoid circular dependencies.
 
 ## 6. Commands

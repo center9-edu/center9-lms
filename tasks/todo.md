@@ -8,12 +8,12 @@ Chi tiết và acceptance criteria: [plan.md](plan.md).
   - `requireUser()` dời sang T6: `/doi-mat-khau` không dùng được nó (sẽ tự redirect về chính nó), `/quan-tri` là trang đầu tiên cần
 - [x] T4. Đổi mật khẩu (bắt buộc khi `mustChangePassword`) — API + `/doi-mat-khau`
 - [x] T5. Chặn tạm 15 phút sau 5 lần sai (username + IP)
-- [ ] **Checkpoint A:** lint/typecheck/test/build xanh, review bảo mật, user duyệt
+- [x] **Checkpoint A:** lint/typecheck/test/build xanh, review bảo mật, user duyệt
   - Sửa lỗi từ review:
     - [x] I1. Giới hạn 50 lần sai / 15 phút theo IP
     - [x] I2. Test tích hợp cho guard mặc định chặn (`auth.module.spec.ts`)
     - [x] S1. `maxmem` của scrypt tính theo tham số
-    - [ ] I3. CLAUDE.md §5: decorator auth là API công khai
+    - [x] I3. CLAUDE.md §5: decorator auth là API công khai
 - [ ] T6. Users API list/create + `/quan-tri/tai-khoan`
 - [ ] T7. Reset mật khẩu, sửa roles, khoá/mở tài khoản + revoke session + audit
 - [ ] T8. Cập nhật `docs/architecture/README.md`, `CLAUDE.md` §11, `README.md`
