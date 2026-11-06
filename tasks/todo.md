@@ -11,7 +11,7 @@ Chi tiết và acceptance criteria: [plan.md](plan.md).
 - [ ] **Checkpoint A:** lint/typecheck/test/build xanh, review bảo mật, user duyệt
   - Sửa lỗi từ review:
     - [x] I1. Giới hạn 50 lần sai / 15 phút theo IP
-    - [ ] I2. Test tích hợp cho guard mặc định chặn (`auth.module.spec.ts`)
+    - [x] I2. Test tích hợp cho guard mặc định chặn (`auth.module.spec.ts`)
     - [ ] S1. `maxmem` của scrypt tính theo tham số
     - [ ] I3. CLAUDE.md §5: decorator auth là API công khai
 - [ ] T6. Users API list/create + `/quan-tri/tai-khoan`
