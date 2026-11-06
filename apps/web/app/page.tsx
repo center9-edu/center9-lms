@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { logout } from './dang-nhap/actions';
 import { API_URL } from './lib/api';
 import { getSessionUser } from './lib/session';
@@ -21,13 +22,18 @@ export default async function HomePage() {
   const ready = await isApiReady();
   // The status line must render even when the API is down.
   const user = await getSessionUser().catch(() => null);
+  if (user?.mustChangePassword) {
+    redirect('/doi-mat-khau');
+  }
+  const isAdmin = user?.roles.some((role) => role === 'SUPER_ADMIN' || role === 'CENTER_ADMIN');
   return (
     <main style={{ margin: '2rem' }}>
       <h1>Center9Edu LMS</h1>
       {user ? (
         <form action={logout}>
           <p>
-            Xin chào, {user.fullName}. <Link href="/doi-mat-khau">Đổi mật khẩu</Link> <button type="submit">Đăng xuất</button>
+            Xin chào, {user.fullName}. {isAdmin && <Link href="/quan-tri/tai-khoan">Quản lý tài khoản</Link>}{' '}
+            <Link href="/doi-mat-khau">Đổi mật khẩu</Link> <button type="submit">Đăng xuất</button>
           </p>
         </form>
       ) : (

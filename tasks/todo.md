@@ -14,10 +14,11 @@ Chi tiết và acceptance criteria: [plan.md](plan.md).
     - [x] I2. Test tích hợp cho guard mặc định chặn (`auth.module.spec.ts`)
     - [x] S1. `maxmem` của scrypt tính theo tham số
     - [x] I3. CLAUDE.md §5: decorator auth là API công khai
-- [ ] T6. Users API list/create + `/quan-tri/tai-khoan`
+- [x] T6. Users API list/create + `/quan-tri/tai-khoan` (kèm `requireUser()` và S4)
 - [ ] T7. Reset mật khẩu, sửa roles, khoá/mở tài khoản + revoke session + audit
 - [ ] T8. Cập nhật `docs/architecture/README.md`, `CLAUDE.md` §11, `README.md`
 - [ ] **Checkpoint B:** toàn bộ check xanh, hỏi commit/PR trên branch mới `feat/auth-sessions`
 
 ## Cần xác nhận
-- [ ] Giả định 1–4 trong plan.md (quyền quản lý tài khoản, độ dài mật khẩu, admin tạo tài khoản, `/luyen-tap` giữ public)
+- [x] Giả định 1 (đã chốt), username `a-z0-9._-` 3–32 ký tự (đã chốt)
+- [ ] Giả định 2–4 trong plan.md (quyền quản lý tài khoản, độ dài mật khẩu, admin tạo tài khoản, `/luyen-tap` giữ public)

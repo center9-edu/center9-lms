@@ -1,0 +1,205 @@
+/* Colors match luyen-tap/practice.module.css until the app has a shared design system. */
+.shell {
+  --primary: #0029b9;
+  --foreground: #071d3a;
+  --muted: #52617a;
+  --border: #d9dfea;
+  --surface: #f5f7fb;
+  --success: #116a3a;
+  --success-surface: #e8f6ee;
+  --danger: #a4262c;
+  --danger-surface: #fdecec;
+
+  min-height: 100vh;
+  color: var(--foreground);
+  background: var(--surface);
+  line-height: 1.5;
+}
+
+.topBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+
+.brand {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.brandSuffix {
+  margin-left: 0.5rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav a {
+  color: var(--foreground);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.main {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0 0 1.5rem;
+}
+
+.card {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+  max-width: 32rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.field label,
+.roles legend {
+  font-weight: 600;
+}
+
+.field input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+
+.hint,
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.roles legend {
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+
+.form button,
+.account button {
+  justify-self: start;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--primary);
+  border-radius: 0.5rem;
+  color: #fff;
+  background: var(--primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.account button {
+  color: var(--primary);
+  background: #fff;
+}
+
+.form button:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.form input:focus-visible,
+.form button:focus-visible,
+.account button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--danger);
+  background: var(--danger-surface);
+}
+
+.success {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  color: var(--success);
+  background: var(--success-surface);
+}
+
+.success p {
+  margin: 0.25rem 0;
+}
+
+.password {
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  color: var(--foreground);
+  background: #fff;
+  font-size: 1.125rem;
+  letter-spacing: 0.05em;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th {
+  color: var(--muted);
+  font-weight: 600;
+}

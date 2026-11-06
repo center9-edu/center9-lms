@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 import { apiFetch, SESSION_COOKIE } from './api';
 
@@ -31,6 +32,24 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   }
   return (await res.json()) as SessionUser;
 });
+
+/**
+ * For pages behind login: sends visitors to log in, users with a temporary password to change it,
+ * and hides the page (404) from users without one of `roles`. The API checks again on every call.
+ */
+export async function requireUser(roles?: Role[]): Promise<SessionUser> {
+  const user = await getSessionUser();
+  if (!user) {
+    redirect('/dang-nhap');
+  }
+  if (user.mustChangePassword) {
+    redirect('/doi-mat-khau');
+  }
+  if (roles && !roles.some((role) => user.roles.includes(role))) {
+    notFound();
+  }
+  return user;
+}
 
 /** Only from Server Actions: cookies can be changed only while responding to one. */
 export async function setSessionCookie(token: string) {

@@ -342,3 +342,12 @@ describe('AuthService.login throttling', () => {
     expect(await attempt(service, PASSWORD, 'gv.lan', '198.51.100.1')).toBe(200);
   });
 });
+
+describe('AuthService.createTemporaryPassword', () => {
+  it('returns a temporary password and a hash that verifies it', async () => {
+    const { service } = fakePrisma([]);
+    const { password, passwordHash } = await service.createTemporaryPassword();
+    expect(password).toMatch(/^\w{12}$/);
+    await expect(verifyPassword(password, passwordHash)).resolves.toBe(true);
+  });
+});

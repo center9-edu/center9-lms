@@ -98,6 +98,8 @@ describe('AuthModule wiring (default deny)', () => {
 
   it('enforces @Roles', async () => {
     expect(await status('/probe/admin', TEACHER_TOKEN)).toBe(403);
+    expect(await status('/users')).toBe(401);
+    expect(await status('/users', TEACHER_TOKEN)).toBe(403);
   });
 
   it('allows only password-change endpoints while a temporary password is in use', async () => {

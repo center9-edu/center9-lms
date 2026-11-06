@@ -12,7 +12,7 @@ import type { Role, User } from '@center9/database';
 import { PrismaService } from '../prisma.service.js';
 import { AttemptCounter } from './attempt-counter.js';
 import type { AuthContext, LoginResultDto, SessionUserDto } from './auth.dto.js';
-import { hashPassword, verifyPassword } from './password.js';
+import { generateTemporaryPassword, hashPassword, verifyPassword } from './password.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A session ends after 7 idle days... */
@@ -141,5 +141,11 @@ export class AuthService {
       });
       await tx.auditLog.create({ data: { actorId: user.id, action: 'auth.password_changed', entityType: 'user', entityId: user.id } });
     });
+  }
+
+  /** For accounts set up by an admin: the password is shown once, and the user must change it at first login. */
+  async createTemporaryPassword(): Promise<{ password: string; passwordHash: string }> {
+    const password = generateTemporaryPassword();
+    return { password, passwordHash: await hashPassword(password) };
   }
 }
