@@ -1,5 +1,5 @@
 // Local development only: fills an empty database with fake test accounts, all sharing one known password.
-// Run with `pnpm db:seed`. Accounts that already exist are left untouched, so it is safe to rerun.
+// Run with `pnpm db:seed` right after a reset; it refuses to touch a database that already has accounts.
 import type { Role } from '@center9/database';
 import { hashPassword } from '../auth/password.js';
 import { PrismaService } from '../prisma.service.js';
@@ -29,11 +29,11 @@ if (!LOCAL_HOSTS.includes(databaseHost)) {
 
 const prisma = new PrismaService();
 try {
+  // An SSH tunnel to a shared database also looks like localhost; one that already has accounts is never seeded.
+  if ((await prisma.user.count()) > 0) {
+    throw new Error('Refusing to seed: the database already has accounts. Reset it first.');
+  }
   for (const { username, fullName, roles } of SEED_USERS) {
-    if (await prisma.user.findUnique({ where: { username } })) {
-      console.log(`skipped  ${username.padEnd(10)} already exists`);
-      continue;
-    }
     await prisma.user.create({
       data: {
         username,

@@ -66,7 +66,8 @@ It prints a temporary password once. Log in at <http://localhost:3000/dang-nhap>
 other accounts at <http://localhost:3000/quan-tri/tai-khoan>. The script refuses to run if a `SUPER_ADMIN` already exists.
 
 For local testing, `pnpm db:seed` instead creates fake accounts for every role (`admin`, `ql.mai`, `nv.ha`, `gv.lan`,
-`gv.nam`, `hs.minh`, `hs.an`, `ph.hung`), all with the password `Center9-test`. It only runs against a local `DATABASE_URL`.
+`gv.nam`, `hs.minh`, `hs.an`, `ph.hung`), all with the password `Center9-test`. It only runs against a local `DATABASE_URL`
+with no accounts yet, so reset first: `pnpm --filter @center9/database exec prisma migrate reset --force && pnpm db:seed`.
 
 ### Coding practice (`/luyen-tap`)
 

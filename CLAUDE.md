@@ -152,7 +152,7 @@ Run from the repository root:
 | `pnpm db:migrate:dev --name <name>` | Create and apply a migration locally |
 | `pnpm db:migrate:deploy` | Apply committed migrations |
 | `pnpm db:migrate:status` | Show migration status |
-| `pnpm db:seed` | Create fake test accounts in the local database (refuses non-local `DATABASE_URL`) |
+| `pnpm db:seed` | Create fake test accounts in an empty local database (refuses a non-local `DATABASE_URL` or existing accounts) |
 
 Run a script in one package with `pnpm --filter @center9/<name> <script>`.
 
