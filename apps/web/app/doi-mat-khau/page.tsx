@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { logout } from '../dang-nhap/actions';
 import { getSessionUser } from '../lib/session';
 import { AuthCard } from '../ui/auth-card';
-import { FOCUS, LINK_BUTTON } from '../ui/styles';
+import { FOCUS } from '../ui/styles';
 import { ChangePasswordForm } from './change-password-form';
 
 export const metadata: Metadata = {
@@ -30,7 +30,10 @@ export default async function ChangePasswordPage() {
       <div className="mt-5 text-center">
         {user.mustChangePassword ? (
           <form action={logout}>
-            <button type="submit" className={LINK_BUTTON}>
+            <button
+              type="submit"
+              className={`cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-primary underline ${FOCUS}`}
+            >
               Đăng xuất
             </button>
           </form>

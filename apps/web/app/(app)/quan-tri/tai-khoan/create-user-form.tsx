@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { ERROR_ALERT, HINT, INPUT, LABEL, SMALL_BUTTON, SUCCESS_ALERT } from '../../../ui/styles';
+import { ERROR_ALERT, INPUT, LABEL, SMALL_BUTTON, SUCCESS_ALERT } from '../../../ui/styles';
 import { createUser } from './actions';
 
 export function CreateUserForm({ roleOptions }: { roleOptions: { value: string; label: string }[] }) {
@@ -47,7 +47,7 @@ export function CreateUserForm({ roleOptions }: { roleOptions: { value: string; 
             required
             className={INPUT}
           />
-          <p id="usernameHint" className={HINT}>
+          <p id="usernameHint" className="m-0 text-sm text-muted">
             3–32 ký tự: chữ thường không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang. Ví dụ: hs.an hoặc gv_lan.
           </p>
         </div>

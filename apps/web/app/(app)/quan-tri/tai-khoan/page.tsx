@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { requireUser } from '../../../lib/session';
+import { ADMIN_ROLES, requireUser, ROLE_LABELS } from '../../../lib/session';
 import type { Role } from '../../../lib/session';
 import { Badge } from '../../../ui/badge';
 import type { BadgeTone } from '../../../ui/badge';
 import { CARD } from '../../../ui/styles';
 import { CreateUserForm } from './create-user-form';
 import { UserActions } from './user-actions';
-import { ADMIN_ROLES, fetchUsers, ROLE_LABELS, STATUS_LABELS } from './users';
+import { fetchUsers, STATUS_LABELS } from './users';
 import type { UserStatus } from './users';
 
 export const metadata: Metadata = {

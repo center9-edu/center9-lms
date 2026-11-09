@@ -2,10 +2,9 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { logout } from '../dang-nhap/actions';
 import { CLASS_ROLES } from '../lib/demo-data';
-import { requireUser } from '../lib/session';
+import { ADMIN_ROLES, requireUser, ROLE_LABELS } from '../lib/session';
 import { FOCUS } from '../ui/styles';
 import type { Role } from '../lib/session';
-import { ADMIN_ROLES, ROLE_LABELS } from './quan-tri/tai-khoan/users';
 import { NavLink } from './nav-link';
 
 // Without `roles`, every signed-in user sees the item. The pages check roles again; hiding a link is not access control.

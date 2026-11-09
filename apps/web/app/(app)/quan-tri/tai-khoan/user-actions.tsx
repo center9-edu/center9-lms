@@ -2,8 +2,10 @@
 
 import { useActionState } from 'react';
 import type { FormEvent } from 'react';
-import { DANGER_OUTLINE_BUTTON, ERROR_ALERT, FOCUS, INPUT, LABEL, SMALL_BUTTON, SUCCESS_ALERT } from '../../../ui/styles';
+import { ERROR_ALERT, FOCUS, INPUT, LABEL, SMALL_BUTTON, SUCCESS_ALERT } from '../../../ui/styles';
 import { resetPassword, updateUser } from './actions';
+
+const DANGER_OUTLINE_BUTTON = `cursor-pointer justify-self-start rounded-lg border border-solid border-danger bg-white px-4 py-2 font-[inherit] text-sm font-semibold text-danger hover:bg-danger-surface disabled:cursor-progress disabled:opacity-70 ${FOCUS}`;
 
 interface Props {
   user: { id: string; username: string; fullName: string; roles: string[]; status: string };

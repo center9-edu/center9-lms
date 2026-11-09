@@ -7,6 +7,17 @@ import { apiFetch, SESSION_COOKIE } from './api';
 
 export type Role = 'SUPER_ADMIN' | 'CENTER_ADMIN' | 'SALES' | 'TEACHER' | 'STUDENT' | 'PARENT';
 
+export const ADMIN_ROLES: Role[] = ['SUPER_ADMIN', 'CENTER_ADMIN'];
+
+export const ROLE_LABELS: Record<Role, string> = {
+  STUDENT: 'Học sinh',
+  PARENT: 'Phụ huynh',
+  TEACHER: 'Giáo viên',
+  SALES: 'Tư vấn tuyển sinh',
+  CENTER_ADMIN: 'Quản lý trung tâm',
+  SUPER_ADMIN: 'Quản trị hệ thống',
+};
+
 export interface SessionUser {
   id: string;
   username: string;
