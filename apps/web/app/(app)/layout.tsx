@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { logout } from '../dang-nhap/actions';
+import { CLASS_ROLES } from '../lib/demo-data';
 import { requireUser } from '../lib/session';
 import { FOCUS } from '../ui/styles';
 import type { Role } from '../lib/session';
@@ -10,6 +11,7 @@ import { NavLink } from './nav-link';
 // Without `roles`, every signed-in user sees the item. The pages check roles again; hiding a link is not access control.
 const NAV_ITEMS: { href: string; label: string; roles?: Role[] }[] = [
   { href: '/', label: 'Tổng quan' },
+  { href: '/lop-hoc', label: 'Lớp học', roles: CLASS_ROLES },
   { href: '/quan-tri/tai-khoan', label: 'Tài khoản', roles: ADMIN_ROLES },
   { href: '/luyen-tap', label: 'Luyện tập' },
 ];

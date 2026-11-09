@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { API_URL } from '../lib/api';
+import { CLASS_ROLES } from '../lib/demo-data';
 import { requireUser } from '../lib/session';
 import type { Role } from '../lib/session';
 import { ADMIN_ROLES } from './quan-tri/tai-khoan/users';
@@ -19,6 +20,7 @@ async function isApiReady(): Promise<boolean> {
 }
 
 const SHORTCUTS: { href: string; title: string; description: string; roles?: Role[] }[] = [
+  { href: '/lop-hoc', title: 'Lớp học', description: 'Danh sách lớp, buổi học và điểm danh (demo).', roles: CLASS_ROLES },
   {
     href: '/quan-tri/tai-khoan',
     title: 'Quản lý tài khoản',
