@@ -65,6 +65,9 @@ pnpm --filter @center9/api create-super-admin <username> "<full name>"
 It prints a temporary password once. Log in at <http://localhost:3000/dang-nhap>, set a new password, then create
 other accounts at <http://localhost:3000/quan-tri/tai-khoan>. The script refuses to run if a `SUPER_ADMIN` already exists.
 
+For local testing, `pnpm db:seed` instead creates fake accounts for every role (`admin`, `ql.mai`, `nv.ha`, `gv.lan`,
+`gv.nam`, `hs.minh`, `hs.an`, `ph.hung`), all with the password `Center9-test`. It only runs against a local `DATABASE_URL`.
+
 ### Coding practice (`/luyen-tap`)
 
 Add `JUDGE0_URL=http://127.0.0.1:2358` to `.env`, run `pnpm judge0:fake` next to `pnpm dev`, then open <http://localhost:3000/luyen-tap>.
@@ -84,6 +87,7 @@ The practice pages do not query the database. Read [`infra/judge0/README.md`](in
 | `pnpm db:migrate:dev`    | Create a new migration from `schema.prisma` changes (local only)      |
 | `pnpm db:migrate:deploy` | Apply committed migrations (for CI, staging, production)              |
 | `pnpm db:migrate:status` | Show migration status                                                 |
+| `pnpm db:seed`           | Create fake test accounts in the local database (local only)          |
 | `pnpm judge0:fake`       | Local stand-in for Judge0. **No sandbox: never deploy or expose it**  |
 | `pnpm --filter @center9/api create-super-admin <username> "<full name>"` | Create the first `SUPER_ADMIN` (after `pnpm build`) |
 

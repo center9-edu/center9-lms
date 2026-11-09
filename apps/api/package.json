@@ -9,7 +9,8 @@
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "create-super-admin": "node --env-file-if-exists=../../.env dist/scripts/create-super-admin.js"
+    "create-super-admin": "node --env-file-if-exists=../../.env dist/scripts/create-super-admin.js",
+    "seed": "node --env-file-if-exists=../../.env dist/scripts/seed.js"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.11",
@@ -25,6 +26,7 @@
     "@nestjs/core": "^12.3.2",
     "@nestjs/platform-express": "^12.3.2",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "zod": "^4.6.7"
   }
 }

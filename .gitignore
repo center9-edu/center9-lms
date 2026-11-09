@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .next/
+.codegraph/
 coverage/
 *.tsbuildinfo
 next-env.d.ts
@@ -16,3 +17,4 @@ packages/database/src/generated/
 
 # Local planning artifacts (see CLAUDE.md, Git Conventions)
 tasks/
+
