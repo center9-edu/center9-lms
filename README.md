@@ -3,12 +3,12 @@
 Learning management system for the Center9Edu technology education center.
 The landing page lives in the separate `center9-website` repository.
 
-| Component           | Package             | Technology                             |
-| ------------------- | ------------------- | -------------------------------------- |
-| `apps/web`          | `@center9/web`      | Next.js 16 (App Router), React 19      |
-| `apps/api`          | `@center9/api`      | NestJS 12 (REST, ESM)                  |
-| `packages/database` | `@center9/database` | Prisma 7 + PostgreSQL (driver adapter) |
-| `infra/docker`      | –                   | PostgreSQL 18 for local development    |
+| Component           | Package             | Technology                                        |
+| ------------------- | ------------------- | ------------------------------------------------- |
+| `apps/web`          | `@center9/web`      | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
+| `apps/api`          | `@center9/api`      | NestJS 12 (REST, ESM)                             |
+| `packages/database` | `@center9/database` | Prisma 7 + PostgreSQL (driver adapter)            |
+| `infra/docker`      | –                   | PostgreSQL 18 for local development               |
 
 Architecture and conventions: [docs/architecture/README.md](docs/architecture/README.md).
 
@@ -46,7 +46,7 @@ pnpm dev
 
 Check that it works:
 
-- Web: <http://localhost:3000> – shows “API và database sẵn sàng”
+- Web: <http://localhost:3000> – redirects to `/dang-nhap`. After logging in as an admin (see below), the dashboard shows “API và database sẵn sàng”
 - API liveness: `curl localhost:3001/health` → `{"status":"ok"}`
 - API readiness (checks the database): `curl localhost:3001/health/ready` → `{"status":"ok","database":"up"}`
   (returns `503` with `{"status":"error","database":"down"}` when the database is unreachable)
@@ -69,6 +69,12 @@ For local testing, `pnpm db:seed` instead creates fake accounts for every role (
 `gv.nam`, `hs.minh`, `hs.an`, `ph.hung`), all with the password `Center9-test`. It only runs against a local `DATABASE_URL`
 with no accounts yet, so reset first: `pnpm --filter @center9/database exec prisma migrate reset --force && pnpm db:seed`.
 
+### Demo screens (`/lop-hoc`)
+
+Classes, sessions and attendance have no API yet. `/lop-hoc`, `/lop-hoc/<code>` and the dashboard widgets marked **Demo** use fake data
+from `apps/web/app/lib/demo-data.ts` and say so on screen. Attendance marked there lives only in the browser tab and resets on reload.
+Log in as `gv.lan`, `nv.ha`, `hs.minh` or `ph.hung` (see `pnpm db:seed`) to see each role's view.
+
 ### Coding practice (`/luyen-tap`)
 
 Add `JUDGE0_URL=http://127.0.0.1:2358` to `.env`, run `pnpm judge0:fake` next to `pnpm dev`, then open <http://localhost:3000/luyen-tap>.
@@ -82,7 +88,7 @@ The practice pages do not query the database. Read [`infra/judge0/README.md`](in
 | `pnpm build`             | Build every package in dependency order                               |
 | `pnpm lint`              | ESLint for the whole repository (one config at the root)              |
 | `pnpm typecheck`         | `tsc --noEmit` for each package                                       |
-| `pnpm test`              | Vitest for the API                                                    |
+| `pnpm test`              | Vitest for the API, `node:test` for the web demo data                 |
 | `pnpm db:up` / `db:down` | Start / stop local PostgreSQL                                         |
 | `pnpm db:generate`       | Regenerate Prisma Client and build `@center9/database` after a schema change |
 | `pnpm db:migrate:dev`    | Create a new migration from `schema.prisma` changes (local only)      |
