@@ -2,7 +2,7 @@
 
 import { useActionState } from 'react';
 import type { FormEvent } from 'react';
-import styles from '../admin.module.css';
+import { DANGER_OUTLINE_BUTTON, ERROR_ALERT, FOCUS, INPUT, LABEL, SMALL_BUTTON, SUCCESS_ALERT } from '../../../ui/styles';
 import { resetPassword, updateUser } from './actions';
 
 interface Props {
@@ -22,23 +22,26 @@ export function UserActions({ user, roleOptions, statusOptions }: Props) {
   }
 
   return (
-    <details className={styles.actions}>
-      <summary>Sửa</summary>
-      <form action={update} className={styles.form}>
+    <details className="open:min-w-72">
+      <summary className={`cursor-pointer rounded font-semibold text-primary ${FOCUS}`}>Sửa</summary>
+      <form action={update} className="mt-3 grid gap-3">
         <input type="hidden" name="id" value={user.id} />
         <input type="hidden" name="currentRoles" value={[...user.roles].sort().join()} />
         <input type="hidden" name="currentStatus" value={user.status} />
-        <fieldset className={styles.roles}>
-          <legend>Vai trò</legend>
+        <fieldset className="m-0 grid gap-1.5 border-0 p-0">
+          <legend className={`${LABEL} mb-1.5 p-0`}>Vai trò</legend>
           {roleOptions.map(({ value, label }) => (
-            <label key={value}>
-              <input type="checkbox" name="roles" value={value} defaultChecked={user.roles.includes(value)} /> {label}
+            <label key={value} className="flex items-center gap-1.5">
+              <input type="checkbox" name="roles" value={value} defaultChecked={user.roles.includes(value)} className="accent-primary" />{' '}
+              {label}
             </label>
           ))}
         </fieldset>
-        <div className={styles.field}>
-          <label htmlFor={`status-${user.id}`}>Trạng thái</label>
-          <select id={`status-${user.id}`} name="status" defaultValue={user.status}>
+        <div className="grid gap-1.5">
+          <label htmlFor={`status-${user.id}`} className={LABEL}>
+            Trạng thái
+          </label>
+          <select id={`status-${user.id}`} name="status" defaultValue={user.status} className={`${INPUT} py-2`}>
             {statusOptions.map(({ value, label }) => (
               <option key={value} value={value}>
                 {label}
@@ -47,31 +50,32 @@ export function UserActions({ user, roleOptions, statusOptions }: Props) {
           </select>
         </div>
         {updateState && (
-          <p role={updateState.ok ? 'status' : 'alert'} className={updateState.ok ? styles.success : styles.error}>
+          <p role={updateState.ok ? 'status' : 'alert'} className={updateState.ok ? SUCCESS_ALERT : ERROR_ALERT}>
             {updateState.message}
           </p>
         )}
-        <button type="submit" disabled={updating}>
+        <button type="submit" disabled={updating} className={SMALL_BUTTON}>
           {updating ? 'Đang lưu…' : 'Lưu thay đổi'}
         </button>
       </form>
 
-      <form action={reset} onSubmit={confirmReset} className={styles.form}>
+      <form action={reset} onSubmit={confirmReset} className="mt-4 grid gap-3 border-0 border-t border-solid border-border pt-4">
         <input type="hidden" name="id" value={user.id} />
         {resetState?.ok && (
-          <div role="status" className={styles.success}>
-            <p>
-              Mật khẩu tạm mới: <code className={styles.password}>{resetState.temporaryPassword}</code>
+          <div role="status" className={`${SUCCESS_ALERT} grid gap-1`}>
+            <p className="m-0">
+              Mật khẩu tạm mới:{' '}
+              <code className="rounded bg-white px-1.5 py-0.5 text-lg tracking-wider text-foreground">{resetState.temporaryPassword}</code>
             </p>
-            <p>Hãy gửi cho người dùng ngay: mật khẩu chỉ hiện một lần.</p>
+            <p className="m-0">Hãy gửi cho người dùng ngay: mật khẩu chỉ hiện một lần.</p>
           </div>
         )}
         {resetState && !resetState.ok && (
-          <p role="alert" className={styles.error}>
+          <p role="alert" className={ERROR_ALERT}>
             {resetState.message}
           </p>
         )}
-        <button type="submit" disabled={resetting} className={styles.secondary}>
+        <button type="submit" disabled={resetting} className={DANGER_OUTLINE_BUTTON}>
           {resetting ? 'Đang đặt lại…' : 'Đặt lại mật khẩu'}
         </button>
       </form>

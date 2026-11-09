@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
-import { apiFetch } from '../../lib/api';
-import type { Role } from '../../lib/session';
+import { apiFetch } from '../../../lib/api';
+import type { Role } from '../../../lib/session';
 
 // Server-only: import this file only from Server Components and Server Actions.
 

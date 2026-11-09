@@ -5,7 +5,6 @@ import { python } from '@codemirror/lang-python';
 import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import { useEffect, useRef } from 'react';
-import styles from '../practice.module.css';
 
 interface CodeEditorProps {
   initialCode: string;
@@ -34,5 +33,11 @@ export function CodeEditor({ initialCode, onChange }: CodeEditorProps) {
     return () => view.destroy();
   }, [initialCode, onChange]);
 
-  return <div ref={containerRef} className={styles.editor} />;
+  // CodeMirror injects its own unlayered styles, so the focus outline needs `!` to beat them.
+  return (
+    <div
+      ref={containerRef}
+      className="overflow-hidden rounded-lg border border-solid border-border text-[0.9375rem] [&_.cm-editor]:max-h-[55vh] [&_.cm-editor]:min-h-56 [&_.cm-editor.cm-focused]:outline-2! [&_.cm-editor.cm-focused]:-outline-offset-2! [&_.cm-editor.cm-focused]:outline-primary! [&_.cm-scroller]:min-h-56 min-[56rem]:[&_.cm-editor]:min-h-72 min-[56rem]:[&_.cm-scroller]:min-h-72"
+    />
+  );
 }

@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+/* Brand colors, taken from the former CSS Modules. */
+@theme {
+  --color-primary: #0029b9;
+  --color-foreground: #071d3a;
+  --color-muted: #52617a;
+  --color-border: #d9dfea;
+  --color-surface: #f5f7fb;
+  --color-success: #116a3a;
+  --color-success-surface: #e8f6ee;
+  --color-danger: #a4262c;
+  --color-danger-surface: #fdecec;
+}
