@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .next/
+.codegraph/
 coverage/
 *.tsbuildinfo
 next-env.d.ts

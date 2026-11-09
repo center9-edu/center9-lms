@@ -102,6 +102,21 @@ describe('AuthModule wiring (default deny)', () => {
     expect(await status('/users', TEACHER_TOKEN)).toBe(403);
   });
 
+  it('validates request bodies before reaching the service', async () => {
+    const post = async (path: string, body: unknown, token?: string) =>
+      (
+        await fetch(`${baseUrl}${path}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify(body),
+        })
+      ).status;
+
+    expect(await post('/auth/login', {})).toBe(400);
+    expect(await post('/auth/login', { username: 'gv.lan', password: '' })).toBe(400);
+    expect(await post('/auth/password', { currentPassword: 'TamThoi-8x2k', newPassword: 'short' }, TEACHER_TOKEN)).toBe(400);
+  });
+
   it('allows only password-change endpoints while a temporary password is in use', async () => {
     expect(await status('/probe/closed', PENDING_TOKEN)).toBe(403);
     expect(await status('/auth/me', PENDING_TOKEN)).toBe(200);
