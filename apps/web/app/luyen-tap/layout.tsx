@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import styles from './practice.module.css';
+import { FOCUS } from '../ui/styles';
 
 export const metadata: Metadata = {
   title: 'Luyện tập Python | Center9Edu',
@@ -10,10 +10,13 @@ export const metadata: Metadata = {
 
 export default function PracticeLayout({ children }: { children: ReactNode }) {
   return (
-    <div className={styles.shell}>
-      <header className={styles.topBar}>
-        <Link href="/luyen-tap" className={styles.brand}>
-          Center9Edu <span className={styles.brandSuffix}>Luyện tập Python</span>
+    <div className="flex min-h-screen flex-col bg-white leading-relaxed text-foreground">
+      <header className="flex items-center gap-4 border-0 border-b border-solid border-border px-6 py-3">
+        <Link href="/luyen-tap" className={`rounded font-bold text-primary no-underline ${FOCUS}`}>
+          Center9Edu <span className="ml-2 font-normal text-muted">Luyện tập Python</span>
+        </Link>
+        <Link href="/" className={`ml-auto rounded text-sm font-semibold text-primary underline ${FOCUS}`}>
+          Vào LMS
         </Link>
       </header>
       {children}

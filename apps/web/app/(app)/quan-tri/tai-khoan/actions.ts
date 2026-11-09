@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { apiFetch } from '../../lib/api';
-import { clearSessionCookie } from '../../lib/session';
+import { apiFetch } from '../../../lib/api';
+import { clearSessionCookie } from '../../../lib/session';
 import type { UserSummary } from './users';
 
 export type CreateUserState =

@@ -16,9 +16,10 @@ The team is 2–4 developers. Prefer a simple modular monolith that is easy to u
 - **Package Manager:** pnpm 11 workspace, pinned via `packageManager` (use Corepack)
 - **Language:** TypeScript 6.0 (strict mode), ESM everywhere (`"type": "module"`)
 - **Frontend:** Next.js (App Router), React — `apps/web`
+- **Styling:** Tailwind CSS v4 (`apps/web/app/globals.css`, brand colors as `@theme` tokens)
 - **Backend:** NestJS REST API — `apps/api`
 - **Database:** PostgreSQL + Prisma ORM (driver adapter `@prisma/adapter-pg`) — `packages/database`
-- **Testing:** Vitest (API)
+- **Testing:** Vitest (API); `node:test` for `apps/web/app/lib/demo-data.ts` (no extra dependency)
 - **Linting:** ESLint flat config at the repository root
 - **Local infrastructure:** Docker Compose for PostgreSQL — `infra/docker`
 - **CI:** GitHub Actions — `.github/workflows/ci.yml`
@@ -61,6 +62,8 @@ Create folders, packages, and modules only when the first real file needs them. 
 - Next.js routes, layouts, and UI.
 - Fetches data from the API over HTTP. Never accesses the database.
 - Keep `page.tsx` and `layout.tsx` focused on composition.
+- Signed-in pages live in the `(app)` route group, which provides the shared shell.
+- `app/lib/demo-data.ts` is fake data for screens whose API does not exist yet. Never build real features on it, and label every screen that uses it.
 
 **`packages/database`**
 - `prisma/schema.prisma`, `prisma/migrations/`, `prisma.config.ts`, and `src/index.ts`.

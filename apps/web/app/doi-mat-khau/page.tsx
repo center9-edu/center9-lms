@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import styles from '../dang-nhap/login.module.css';
 import { logout } from '../dang-nhap/actions';
 import { getSessionUser } from '../lib/session';
+import { AuthCard } from '../ui/auth-card';
+import { FOCUS } from '../ui/styles';
 import { ChangePasswordForm } from './change-password-form';
 
 export const metadata: Metadata = {
@@ -17,27 +18,31 @@ export default async function ChangePasswordPage() {
   }
 
   return (
-    <main className={styles.page}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>Đổi mật khẩu</h1>
-        <p className={styles.brand}>
-          {user.mustChangePassword
-            ? `Chào ${user.fullName}, đây là mật khẩu tạm. Vui lòng đặt mật khẩu mới trước khi tiếp tục.`
-            : `Tài khoản: ${user.username}`}
-        </p>
-        <ChangePasswordForm />
-        <div className={styles.footer}>
-          {user.mustChangePassword ? (
-            <form action={logout}>
-              <button type="submit" className={styles.linkButton}>
-                Đăng xuất
-              </button>
-            </form>
-          ) : (
-            <Link href="/">Quay lại</Link>
-          )}
-        </div>
+    <AuthCard
+      title="Đổi mật khẩu"
+      subtitle={
+        user.mustChangePassword
+          ? `Chào ${user.fullName}, đây là mật khẩu tạm. Vui lòng đặt mật khẩu mới trước khi tiếp tục.`
+          : `Tài khoản: ${user.username}`
+      }
+    >
+      <ChangePasswordForm />
+      <div className="mt-5 text-center">
+        {user.mustChangePassword ? (
+          <form action={logout}>
+            <button
+              type="submit"
+              className={`cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-primary underline ${FOCUS}`}
+            >
+              Đăng xuất
+            </button>
+          </form>
+        ) : (
+          <Link href="/" className={`rounded text-primary underline ${FOCUS}`}>
+            Quay lại
+          </Link>
+        )}
       </div>
-    </main>
+    </AuthCard>
   );
 }

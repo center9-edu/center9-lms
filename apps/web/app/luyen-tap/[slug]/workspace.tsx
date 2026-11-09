@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import styles from '../practice.module.css';
+import { Badge } from '../../ui/badge';
+import { FOCUS, OUTLINE_BUTTON, PRIMARY_BUTTON } from '../../ui/styles';
 import { markCompleted } from '../progress';
 import type { ProblemDetail, RunMode, RunResult, TestResult, TestVerdict } from '../types';
 import { runCode } from './actions';
@@ -25,6 +26,11 @@ const ERROR_EXPLANATIONS: [string, string][] = [
   ['ZeroDivisionError', 'Máy tính không thể chia cho 0.'],
   ['EOFError', 'Chương trình đang đọc nhiều input() hơn dữ liệu được cho.'],
 ];
+
+const TEXT_BUTTON = `cursor-pointer rounded-lg border-0 bg-transparent px-3 py-2.5 font-[inherit] text-base text-muted underline disabled:cursor-wait disabled:opacity-60 ${FOCUS}`;
+const MESSAGE = 'm-0 my-2 rounded-lg px-3.5 py-2.5 font-semibold';
+const OUTPUT_GRID = 'mb-2 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-2';
+const SECTION_HEADING = 'm-0 mt-6 mb-2 text-[1.0625rem] font-bold';
 
 function explainError(errorOutput: string): string | undefined {
   return ERROR_EXPLANATIONS.find(([name]) => errorOutput.includes(name))?.[1];
@@ -51,8 +57,8 @@ function testLabel(tests: TestResult[], index: number): string {
 function OutputBlock({ label, text }: { label: string; text: string }) {
   return (
     <div>
-      <p className={styles.outputLabel}>{label}</p>
-      <pre className={styles.output}>{text || '(không có gì)'}</pre>
+      <p className="m-0 mt-2 mb-0.5 text-[0.8125rem] text-muted">{label}</p>
+      <pre className="m-0 rounded-md bg-surface px-2.5 py-2 text-sm whitespace-pre-wrap wrap-anywhere">{text || '(không có gì)'}</pre>
     </div>
   );
 }
@@ -60,14 +66,14 @@ function OutputBlock({ label, text }: { label: string; text: string }) {
 function TestRow({ test, label }: { test: TestResult; label: string }) {
   const explanation = test.errorOutput ? explainError(test.errorOutput) : undefined;
   return (
-    <li className={styles.testRow}>
-      <p className={test.verdict === 'passed' ? styles.testPassed : styles.testFailed}>
+    <li className="rounded-lg border border-solid border-border px-3 py-2">
+      <p className={`m-0 ${test.verdict === 'passed' ? 'text-success' : 'text-danger'}`}>
         <strong>{label}:</strong> {VERDICT_LABELS[test.verdict]}
       </p>
       {!test.hidden && test.verdict !== 'passed' && (
         <>
-          {explanation && <p className={styles.explanation}>{explanation}</p>}
-          <div className={styles.outputGrid}>
+          {explanation && <p className="m-0 my-1.5">{explanation}</p>}
+          <div className={OUTPUT_GRID}>
             <OutputBlock label="Dữ liệu vào" text={test.input ?? ''} />
             <OutputBlock label="Kết quả mong muốn" text={test.expectedOutput ?? ''} />
             <OutputBlock label="Chương trình của em in ra" text={test.actualOutput ?? ''} />
@@ -120,61 +126,66 @@ export function Workspace({ problem, nextSlug, trialSignupUrl }: WorkspaceProps)
     outcome?.mode === 'submit' && outcome.result.passedCount === outcome.result.totalCount;
 
   return (
-    <main className={styles.workspace}>
-      <section className={styles.problemPane} aria-labelledby="problem-title">
-        <Link href="/luyen-tap" className={styles.backLink}>
+    <main className="grid min-h-0 flex-1 grid-cols-1 min-[56rem]:grid-cols-[minmax(20rem,2fr)_minmax(0,3fr)]">
+      <section
+        className="border-0 border-b border-solid border-border px-6 pt-5 pb-8 wrap-anywhere min-[56rem]:border-r min-[56rem]:border-b-0"
+        aria-labelledby="problem-title"
+      >
+        <Link href="/luyen-tap" className={`rounded text-[0.9375rem] text-primary underline ${FOCUS}`}>
           ← Danh sách bài
         </Link>
-        <h1 id="problem-title" className={styles.problemHeading}>
+        <h1 id="problem-title" className="m-0 mt-3 mb-1 text-2xl leading-snug font-bold">
           {problem.title}
         </h1>
-        <span className={styles.level}>{problem.level}</span>
+        <Badge>{problem.level}</Badge>
         {problem.statement.map((paragraph) => (
-          <p key={paragraph}>{paragraph}</p>
+          <p key={paragraph} className="m-0 my-4">
+            {paragraph}
+          </p>
         ))}
 
-        <h2 className={styles.sectionHeading}>Ví dụ</h2>
+        <h2 className={SECTION_HEADING}>Ví dụ</h2>
         {problem.examples.map((example, index) => (
-          <div key={example.input} className={styles.outputGrid}>
+          <div key={example.input} className={OUTPUT_GRID}>
             <OutputBlock label={`Ví dụ ${index + 1}: dữ liệu vào`} text={example.input} />
             <OutputBlock label="Kết quả in ra" text={example.output} />
           </div>
         ))}
 
-        <h2 className={styles.sectionHeading}>Gợi ý</h2>
+        <h2 className={SECTION_HEADING}>Gợi ý</h2>
         {problem.hints.slice(0, hintsShown).map((hint) => (
-          <p key={hint} className={styles.hint}>
+          <p key={hint} className="m-0 my-4 border-0 border-l-[3px] border-solid border-primary bg-surface px-3 py-2">
             {hint}
           </p>
         ))}
         {hintsShown < problem.hints.length ? (
-          <button type="button" className={styles.secondaryButton} onClick={() => setHintsShown(hintsShown + 1)}>
+          <button type="button" className={OUTLINE_BUTTON} onClick={() => setHintsShown(hintsShown + 1)}>
             {hintsShown === 0 ? 'Xem gợi ý' : 'Xem gợi ý tiếp theo'}
           </button>
         ) : null}
       </section>
 
-      <section className={styles.codePane} aria-label="Viết và chạy code">
+      <section className="flex min-w-0 flex-col gap-2 px-6 pt-5 pb-8" aria-label="Viết và chạy code">
         <CodeEditor key={editorKey} initialCode={problem.starterCode} onChange={setCode} />
-        <p className={styles.keyboardHint}>Phím Tab dùng để thụt đầu dòng. Muốn rời ô code bằng bàn phím: nhấn Esc rồi Tab.</p>
-        <div className={styles.actions}>
-          <button type="button" className={styles.secondaryButton} disabled={isPending} onClick={() => execute('run')}>
+        <p className="m-0 text-[0.8125rem] text-muted">Phím Tab dùng để thụt đầu dòng. Muốn rời ô code bằng bàn phím: nhấn Esc rồi Tab.</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <button type="button" className={OUTLINE_BUTTON} disabled={isPending} onClick={() => execute('run')}>
             {isPending && activeMode === 'run' ? 'Đang chạy...' : 'Chạy thử'}
           </button>
-          <button type="button" className={styles.primaryButton} disabled={isPending} onClick={() => execute('submit')}>
+          <button type="button" className={`${PRIMARY_BUTTON} py-2.5`} disabled={isPending} onClick={() => execute('submit')}>
             {isPending && activeMode === 'submit' ? 'Đang chấm...' : 'Nộp bài'}
           </button>
-          <button type="button" className={styles.textButton} disabled={isPending} onClick={resetCode}>
+          <button type="button" className={TEXT_BUTTON} disabled={isPending} onClick={resetCode}>
             Khôi phục code ban đầu
           </button>
         </div>
 
-        <div className={styles.results} aria-live="polite">
-          {errorMessage && <p className={styles.errorMessage}>{errorMessage}</p>}
+        <div className="min-h-6" aria-live="polite">
+          {errorMessage && <p className={`${MESSAGE} bg-danger-surface text-danger`}>{errorMessage}</p>}
           {outcome && (
             <>
-              <p className={solved ? styles.summarySuccess : styles.summary}>{summarize(outcome.result, outcome.mode)}</p>
-              <ul className={styles.testList}>
+              <p className={`${MESSAGE} ${solved ? 'bg-success-surface text-success' : 'bg-surface'}`}>{summarize(outcome.result, outcome.mode)}</p>
+              <ul className="m-0 mb-3 grid list-none gap-2 p-0">
                 {outcome.result.tests.map((test, index) => (
                   <TestRow
                     key={index}
@@ -186,16 +197,16 @@ export function Workspace({ problem, nextSlug, trialSignupUrl }: WorkspaceProps)
             </>
           )}
           {solved && (
-            <div className={styles.actions}>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               {nextSlug ? (
-                <Link href={`/luyen-tap/${nextSlug}`} className={styles.primaryButton}>
+                <Link href={`/luyen-tap/${nextSlug}`} className={`${PRIMARY_BUTTON} py-2.5`}>
                   Làm bài tiếp theo
                 </Link>
               ) : (
-                <p>Em đã làm hết các bài thử rồi, giỏi lắm!</p>
+                <p className="m-0">Em đã làm hết các bài thử rồi, giỏi lắm!</p>
               )}
               {trialSignupUrl && (
-                <a href={trialSignupUrl} className={styles.secondaryButton}>
+                <a href={trialSignupUrl} className={OUTLINE_BUTTON}>
                   Đăng ký học thử
                 </a>
               )}
