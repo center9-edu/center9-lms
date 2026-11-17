@@ -1,9 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { apiFetch } from '../../../lib/api';
-import { clearSessionCookie } from '../../../lib/session';
+import { sendFromAction } from '../../../lib/session';
 import type { TeacherDetail } from '../teachers';
 
 /** `bio` is what was submitted, so the form keeps it after an error. */
@@ -28,21 +26,7 @@ export async function saveTeacherProfile(_state: SaveTeacherState, formData: For
   const userId = String(formData.get('userId') ?? '');
   const bio = String(formData.get('bio') ?? '');
 
-  let res: Response | undefined;
-  try {
-    res = await apiFetch(`/teachers/${encodeURIComponent(userId)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bio }),
-    });
-  } catch {
-    res = undefined;
-  }
-  // Outside the try block: redirect() works by throwing.
-  if (res?.status === 401) {
-    await clearSessionCookie();
-    redirect('/dang-nhap');
-  }
+  const res = await sendFromAction(`/teachers/${encodeURIComponent(userId)}`, 'PUT', { bio });
   if (!res?.ok) {
     return { ok: false, message: failureMessage(res?.status), bio };
   }

@@ -21,6 +21,7 @@ export interface LinkedGuardian {
   phone: string | null;
   email: string | null;
   username: string | null;
+  accountFullName: string | null;
   relationship: string;
   relationshipLabel: string;
   isPrimaryContact: boolean;
@@ -85,7 +86,11 @@ function GuardianItem({ studentId, studentName, guardian, relationshipOptions }:
         <span className="font-semibold">{guardian.fullName}</span>
         <span className="text-muted">({guardian.relationshipLabel})</span>
         {guardian.isPrimaryContact && <Badge tone="primary">Liên hệ chính</Badge>}
-        {guardian.username && <Badge>Tài khoản: {guardian.username}</Badge>}
+        {guardian.username && (
+          <Badge>
+            Tài khoản: {guardian.username} ({guardian.accountFullName})
+          </Badge>
+        )}
       </div>
       <p className="m-0 mt-1 text-sm text-muted">{[guardian.phone, guardian.email].filter(Boolean).join(' · ')}</p>
 
@@ -132,6 +137,7 @@ function NewGuardianForm({ studentId, relationshipOptions }: { studentId: string
   return (
     <form action={action} className="mt-3 grid max-w-lg gap-3">
       <input type="hidden" name="studentId" value={studentId} />
+      {state?.createdGuardianId && <input type="hidden" name="createdGuardianId" value={state.createdGuardianId} />}
       <GuardianFields idPrefix="new" values={values ?? { fullName: '', phone: '', email: '', username: '' }} />
       <LinkFields idPrefix="new" options={relationshipOptions} relationship={values?.relationship ?? ''} isPrimaryContact={values?.isPrimaryContact ?? false} />
       <Message state={state} />

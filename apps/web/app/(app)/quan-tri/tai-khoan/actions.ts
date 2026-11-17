@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { apiFetch } from '../../../lib/api';
-import { clearSessionCookie } from '../../../lib/session';
+import { clearSessionCookie, sendFromAction } from '../../../lib/session';
 import type { UserSummary } from './users';
 
 export type CreateUserState =
@@ -77,25 +77,6 @@ function failureMessage(status: number): string {
   }
 }
 
-async function send(path: string, method: string, body?: unknown): Promise<Response | undefined> {
-  let res: Response;
-  try {
-    res = await apiFetch(path, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
-    return undefined;
-  }
-  // Outside the try block: redirect() works by throwing.
-  if (res.status === 401) {
-    await clearSessionCookie();
-    redirect('/dang-nhap');
-  }
-  return res;
-}
-
 export async function updateUser(_state: UpdateUserState, formData: FormData): Promise<UpdateUserState> {
   const id = encodeURIComponent(String(formData.get('id') ?? ''));
   const roles = formData.getAll('roles').filter((role): role is string => typeof role === 'string');
@@ -108,13 +89,13 @@ export async function updateUser(_state: UpdateUserState, formData: FormData): P
     return { ok: false, message: failureMessage(400) };
   }
   if (rolesChanged) {
-    const res = await send(`/users/${id}/roles`, 'PUT', { roles });
+    const res = await sendFromAction(`/users/${id}/roles`, 'PUT', { roles });
     if (!res?.ok) {
       return { ok: false, message: failureMessage(res?.status ?? 0) };
     }
   }
   if (statusChanged) {
-    const res = await send(`/users/${id}/status`, 'PATCH', { status });
+    const res = await sendFromAction(`/users/${id}/status`, 'PATCH', { status });
     if (!res?.ok) {
       return { ok: false, message: failureMessage(res?.status ?? 0) };
     }
@@ -125,7 +106,7 @@ export async function updateUser(_state: UpdateUserState, formData: FormData): P
 
 export async function resetPassword(_state: ResetPasswordState, formData: FormData): Promise<ResetPasswordState> {
   const id = encodeURIComponent(String(formData.get('id') ?? ''));
-  const res = await send(`/users/${id}/password-reset`, 'POST');
+  const res = await sendFromAction(`/users/${id}/password-reset`, 'POST');
   if (!res?.ok) {
     return { ok: false, message: failureMessage(res?.status ?? 0) };
   }

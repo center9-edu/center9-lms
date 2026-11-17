@@ -5,7 +5,6 @@ import type { FormEvent } from 'react';
 import { DANGER_OUTLINE_BUTTON, ERROR_ALERT, FOCUS, INPUT, LABEL, SMALL_BUTTON, SUCCESS_ALERT } from '../../../ui/styles';
 import { resetPassword, updateUser } from './actions';
 
-
 interface Props {
   user: { id: string; username: string; fullName: string; roles: string[]; status: string };
   roleOptions: { value: string; label: string }[];

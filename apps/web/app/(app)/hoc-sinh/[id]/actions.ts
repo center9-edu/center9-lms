@@ -1,32 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { apiFetch } from '../../../lib/api';
-import { clearSessionCookie } from '../../../lib/session';
+import { sendFromAction } from '../../../lib/session';
 import type { Guardian, StudentDetail } from '../students';
 
 const BUSY = 'Hệ thống đang bận. Vui lòng thử lại sau ít phút.';
-
-/** Calls the API; undefined when it could not be reached. A lost session goes back to the login page. */
-async function send(path: string, method: string, body?: unknown): Promise<Response | undefined> {
-  let res: Response;
-  try {
-    res = await apiFetch(path, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
-    return undefined;
-  }
-  // Outside the try block: redirect() works by throwing.
-  if (res.status === 401) {
-    await clearSessionCookie();
-    redirect('/dang-nhap');
-  }
-  return res;
-}
 
 const field = (formData: FormData, name: string) => String(formData.get(name) ?? '');
 const studentPath = (studentId: string) => `/students/${encodeURIComponent(studentId)}`;
@@ -62,7 +40,7 @@ export async function saveStudentProfile(_state: SaveProfileState, formData: For
   const values: ProfileValues = { dateOfBirth: field(formData, 'dateOfBirth'), schoolName: field(formData, 'schoolName'), notes: field(formData, 'notes') };
 
   // The API trims text and turns blanks into null; an empty date input sends ''.
-  const res = await send(studentPath(userId), 'PUT', { ...values, dateOfBirth: values.dateOfBirth || null });
+  const res = await sendFromAction(studentPath(userId), 'PUT', { ...values, dateOfBirth: values.dateOfBirth || null });
   if (!res?.ok) {
     return { ok: false, message: profileFailure(res?.status), values };
   }
@@ -92,8 +70,11 @@ export interface LinkValues {
   isPrimaryContact: boolean;
 }
 
-/** `values` is what was submitted, so the form keeps it after an error. */
-export type GuardianState = { ok: boolean; message: string; values: GuardianValues & LinkValues } | undefined;
+/**
+ * `values` is what was submitted, so the form keeps it after an error. `createdGuardianId` is set when the guardian
+ * was created but not linked, so submitting again only retries the link instead of creating a duplicate.
+ */
+export type GuardianState = { ok: boolean; message: string; values: GuardianValues & LinkValues; createdGuardianId?: string } | undefined;
 export type ActionState = { ok: boolean; message: string } | undefined;
 
 function guardianFailure(status: number | undefined): string {
@@ -125,26 +106,37 @@ const linkValues = (formData: FormData): LinkValues => ({
 });
 
 async function link(studentId: string, { guardianId, relationship, isPrimaryContact }: LinkValues): Promise<Response | undefined> {
-  return send(`${studentPath(studentId)}/guardians/${encodeURIComponent(guardianId)}`, 'PUT', { relationship, isPrimaryContact });
+  return sendFromAction(`${studentPath(studentId)}/guardians/${encodeURIComponent(guardianId)}`, 'PUT', { relationship, isPrimaryContact });
 }
 
-/** Creates a guardian, then links them to the student. */
+/** Creates a guardian, then links them to the student. A retry after a failed link only links. */
 export async function createAndLinkGuardian(_state: GuardianState, formData: FormData): Promise<GuardianState> {
   const studentId = field(formData, 'studentId');
   const values = { ...guardianValues(formData), ...linkValues(formData) };
 
-  const created = await send('/guardians', 'POST', { fullName: values.fullName, phone: values.phone, email: values.email, username: values.username });
-  if (!created?.ok) {
-    return { ok: false, message: guardianFailure(created?.status), values };
+  let guardianId = field(formData, 'createdGuardianId');
+  if (!guardianId) {
+    const created = await sendFromAction('/guardians', 'POST', { fullName: values.fullName, phone: values.phone, email: values.email, username: values.username });
+    if (!created?.ok) {
+      return { ok: false, message: guardianFailure(created?.status), values };
+    }
+    guardianId = ((await created.json()) as Guardian).id;
   }
-  const guardian = (await created.json()) as Guardian;
-  const linked = await link(studentId, { ...values, guardianId: guardian.id });
+  const linked = await link(studentId, { ...values, guardianId });
   revalidatePath(`/hoc-sinh/${studentId}`);
   if (!linked?.ok) {
-    // The guardian exists now; the "existing guardian" form can link them.
-    return { ok: false, message: `Đã tạo phụ huynh nhưng chưa gắn được với học sinh. ${guardianFailure(linked?.status)}`, values };
+    return {
+      ok: false,
+      message: `Đã tạo phụ huynh nhưng chưa gắn được với học sinh. ${guardianFailure(linked?.status)} Bấm "Thêm phụ huynh" lần nữa để thử gắn lại.`,
+      values,
+      createdGuardianId: guardianId,
+    };
   }
-  return { ok: true, message: `Đã thêm ${guardian.fullName}.`, values: { fullName: '', phone: '', email: '', username: '', guardianId: '', relationship: '', isPrimaryContact: false } };
+  return {
+    ok: true,
+    message: `Đã thêm ${values.fullName.trim()}.`,
+    values: { fullName: '', phone: '', email: '', username: '', guardianId: '', relationship: '', isPrimaryContact: false },
+  };
 }
 
 /** Links an existing guardian, or changes the relationship / primary contact of a linked one. */
@@ -162,7 +154,7 @@ export async function linkGuardian(_state: ActionState, formData: FormData): Pro
 export async function updateGuardian(_state: GuardianState, formData: FormData): Promise<GuardianState> {
   const studentId = field(formData, 'studentId');
   const values = { ...guardianValues(formData), ...linkValues(formData) };
-  const res = await send(`/guardians/${encodeURIComponent(values.guardianId)}`, 'PUT', guardianValues(formData));
+  const res = await sendFromAction(`/guardians/${encodeURIComponent(values.guardianId)}`, 'PUT', guardianValues(formData));
   if (!res?.ok) {
     return { ok: false, message: guardianFailure(res?.status), values };
   }
@@ -172,7 +164,7 @@ export async function updateGuardian(_state: GuardianState, formData: FormData):
 
 export async function unlinkGuardian(_state: ActionState, formData: FormData): Promise<ActionState> {
   const studentId = field(formData, 'studentId');
-  const res = await send(`${studentPath(studentId)}/guardians/${encodeURIComponent(field(formData, 'guardianId'))}`, 'DELETE');
+  const res = await sendFromAction(`${studentPath(studentId)}/guardians/${encodeURIComponent(field(formData, 'guardianId'))}`, 'DELETE');
   if (!res?.ok) {
     return { ok: false, message: guardianFailure(res?.status) };
   }

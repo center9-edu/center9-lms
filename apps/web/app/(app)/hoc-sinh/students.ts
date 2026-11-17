@@ -37,6 +37,7 @@ export interface Guardian {
   email: string | null;
   /** The linked PARENT account, if any. */
   username: string | null;
+  accountFullName: string | null;
 }
 
 export interface StudentGuardian {
@@ -45,6 +46,7 @@ export interface StudentGuardian {
   phone: string | null;
   email: string | null;
   username: string | null;
+  accountFullName: string | null;
   relationship: Relationship;
   isPrimaryContact: boolean;
 }
