@@ -9,6 +9,9 @@ export type Role = 'SUPER_ADMIN' | 'CENTER_ADMIN' | 'SALES' | 'TEACHER' | 'STUDE
 
 export const ADMIN_ROLES: Role[] = ['SUPER_ADMIN', 'CENTER_ADMIN'];
 
+/** May manage student profiles; mirrors @Roles on the API's StudentsController. */
+export const STUDENT_MANAGER_ROLES: Role[] = [...ADMIN_ROLES, 'SALES'];
+
 export const ROLE_LABELS: Record<Role, string> = {
   STUDENT: 'Học sinh',
   PARENT: 'Phụ huynh',
@@ -75,4 +78,27 @@ export async function setSessionCookie(token: string) {
 
 export async function clearSessionCookie() {
   (await cookies()).delete(SESSION_COOKIE);
+}
+
+/**
+ * For Server Actions: calls the API with a JSON body. Returns undefined when the API could not be reached;
+ * a lost session (401) clears the cookie and goes back to the login page.
+ */
+export async function sendFromAction(path: string, method: string, body?: unknown): Promise<Response | undefined> {
+  let res: Response;
+  try {
+    res = await apiFetch(path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    return undefined;
+  }
+  // Outside the try block: redirect() works by throwing.
+  if (res.status === 401) {
+    await clearSessionCookie();
+    redirect('/dang-nhap');
+  }
+  return res;
 }

@@ -33,8 +33,9 @@ try {
   if ((await prisma.user.count()) > 0) {
     throw new Error('Refusing to seed: the database already has accounts. Reset it first.');
   }
+  const ids = new Map<string, string>();
   for (const { username, fullName, roles } of SEED_USERS) {
-    await prisma.user.create({
+    const { id } = await prisma.user.create({
       data: {
         username,
         fullName,
@@ -43,8 +44,41 @@ try {
         roles: { create: roles.map((role) => ({ role })) },
       },
     });
+    ids.set(username, id);
     console.log(`created  ${username.padEnd(10)} ${roles.join(', ')}`);
   }
+  const idOf = (username: string) => ids.get(username) ?? '';
+
+  // Codes continue from these: the API numbers new profiles after the highest existing one.
+  await prisma.teacherProfile.createMany({
+    data: [
+      { userId: idOf('gv.lan'), teacherCode: 'GV0001', bio: 'Dạy Python và Scratch cho học sinh tiểu học.' },
+      { userId: idOf('gv.nam'), teacherCode: 'GV0002', bio: null },
+    ],
+  });
+  await prisma.studentProfile.createMany({
+    data: [
+      { userId: idOf('hs.minh'), studentCode: 'HS0001', dateOfBirth: new Date('2014-03-02'), schoolName: 'THCS Thử Nghiệm', notes: 'Ghi chú nội bộ mẫu.' },
+      { userId: idOf('hs.an'), studentCode: 'HS0002', dateOfBirth: null, schoolName: null, notes: null },
+    ],
+  });
+  // One guardian with a PARENT account, one contact-only guardian.
+  await prisma.guardian.create({
+    data: {
+      fullName: 'Nguyễn Văn Hùng',
+      phone: '0900 000 001',
+      userId: idOf('ph.hung'),
+      students: { create: { studentId: idOf('hs.minh'), relationship: 'FATHER', isPrimaryContact: true } },
+    },
+  });
+  await prisma.guardian.create({
+    data: {
+      fullName: 'Lê Thị Hoa',
+      email: 'hoa.le@example.com',
+      students: { create: { studentId: idOf('hs.an'), relationship: 'MOTHER', isPrimaryContact: true } },
+    },
+  });
+  console.log('created  profiles: HS0001-HS0002, GV0001-GV0002, 2 guardians');
   console.log(`\nPassword for every seeded account: ${SEED_PASSWORD}`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

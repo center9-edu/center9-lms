@@ -16,3 +16,5 @@ export const SUCCESS_ALERT = 'm-0 rounded-lg bg-success-surface px-4 py-3 text-s
 export const CARD = 'box-border rounded-xl border border-solid border-border bg-white p-5 md:p-6';
 
 export const OUTLINE_BUTTON = `inline-block cursor-pointer rounded-lg border border-solid border-primary bg-white px-5 py-2.5 text-center font-[inherit] text-base font-semibold text-primary no-underline hover:bg-primary/5 disabled:cursor-wait disabled:opacity-60 ${FOCUS}`;
+
+export const DANGER_OUTLINE_BUTTON = `cursor-pointer justify-self-start rounded-lg border border-solid border-danger bg-white px-4 py-2 font-[inherit] text-sm font-semibold text-danger hover:bg-danger-surface disabled:cursor-progress disabled:opacity-70 ${FOCUS}`;

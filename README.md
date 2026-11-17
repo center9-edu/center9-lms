@@ -66,8 +66,14 @@ It prints a temporary password once. Log in at <http://localhost:3000/dang-nhap>
 other accounts at <http://localhost:3000/quan-tri/tai-khoan>. The script refuses to run if a `SUPER_ADMIN` already exists.
 
 For local testing, `pnpm db:seed` instead creates fake accounts for every role (`admin`, `ql.mai`, `nv.ha`, `gv.lan`,
-`gv.nam`, `hs.minh`, `hs.an`, `ph.hung`), all with the password `Center9-test`. It only runs against a local `DATABASE_URL`
+`gv.nam`, `hs.minh`, `hs.an`, `ph.hung`), all with the password `Center9-test`, plus fake profiles (`HS0001`–`HS0002`,
+`GV0001`–`GV0002`) and two guardians. It only runs against a local `DATABASE_URL`
 with no accounts yet, so reset first: `pnpm --filter @center9/database exec prisma migrate reset --force && pnpm db:seed`.
+
+### Profiles (`/hoc-sinh`, `/giao-vien`)
+
+Log in as `nv.ha` (sales) or `admin` to edit student profiles and guardians at <http://localhost:3000/hoc-sinh>.
+Teacher profiles at <http://localhost:3000/giao-vien> are for admins only. Names in the account list link to the profile.
 
 ### Demo screens (`/lop-hoc`)
 

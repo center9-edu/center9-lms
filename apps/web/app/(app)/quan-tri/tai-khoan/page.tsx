@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { ADMIN_ROLES, requireUser, ROLE_LABELS } from '../../../lib/session';
 import type { Role } from '../../../lib/session';
 import { Badge } from '../../../ui/badge';
 import type { BadgeTone } from '../../../ui/badge';
-import { CARD } from '../../../ui/styles';
+import { CARD, FOCUS } from '../../../ui/styles';
 import { CreateUserForm } from './create-user-form';
 import { UserActions } from './user-actions';
 import { fetchUsers, STATUS_LABELS } from './users';
-import type { UserStatus } from './users';
+import type { UserStatus, UserSummary } from './users';
 
 export const metadata: Metadata = {
   title: 'Tài khoản | Center9Edu LMS',
@@ -17,6 +18,19 @@ const STATUS_TONES: Record<UserStatus, BadgeTone> = { ACTIVE: 'success', INACTIV
 const CELL = 'border-0 border-b border-solid border-border px-3 py-2.5 text-left align-top whitespace-nowrap';
 
 const dateFormat = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' });
+
+/** Links the name to the account's profile page, if it has one. */
+function AccountName({ user }: { user: UserSummary }) {
+  const section = user.roles.includes('STUDENT') ? 'hoc-sinh' : user.roles.includes('TEACHER') ? 'giao-vien' : undefined;
+  if (!section) {
+    return user.fullName;
+  }
+  return (
+    <Link href={`/${section}/${user.id}`} className={`rounded text-primary underline ${FOCUS}`}>
+      {user.fullName}
+    </Link>
+  );
+}
 
 export default async function AccountsPage() {
   const me = await requireUser(ADMIN_ROLES);
@@ -62,7 +76,9 @@ export default async function AccountsPage() {
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
-                  <td className={`${CELL} font-medium`}>{user.fullName}</td>
+                  <td className={`${CELL} font-medium`}>
+                    <AccountName user={user} />
+                  </td>
                   <td className={CELL}>{user.username}</td>
                   <td className={CELL}>
                     <span className="flex flex-wrap gap-1">
