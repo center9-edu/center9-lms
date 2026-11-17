@@ -9,6 +9,9 @@ export type Role = 'SUPER_ADMIN' | 'CENTER_ADMIN' | 'SALES' | 'TEACHER' | 'STUDE
 
 export const ADMIN_ROLES: Role[] = ['SUPER_ADMIN', 'CENTER_ADMIN'];
 
+/** May manage student profiles; mirrors @Roles on the API's StudentsController. */
+export const STUDENT_MANAGER_ROLES: Role[] = [...ADMIN_ROLES, 'SALES'];
+
 export const ROLE_LABELS: Record<Role, string> = {
   STUDENT: 'Học sinh',
   PARENT: 'Phụ huynh',

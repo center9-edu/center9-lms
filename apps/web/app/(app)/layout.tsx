@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { logout } from '../dang-nhap/actions';
 import { CLASS_ROLES } from '../lib/demo-data';
-import { ADMIN_ROLES, requireUser, ROLE_LABELS } from '../lib/session';
+import { ADMIN_ROLES, requireUser, ROLE_LABELS, STUDENT_MANAGER_ROLES } from '../lib/session';
 import { FOCUS } from '../ui/styles';
 import type { Role } from '../lib/session';
 import { NavLink } from './nav-link';
@@ -11,6 +11,8 @@ import { NavLink } from './nav-link';
 const NAV_ITEMS: { href: string; label: string; roles?: Role[] }[] = [
   { href: '/', label: 'Tổng quan' },
   { href: '/lop-hoc', label: 'Lớp học', roles: CLASS_ROLES },
+  { href: '/hoc-sinh', label: 'Học sinh', roles: STUDENT_MANAGER_ROLES },
+  { href: '/giao-vien', label: 'Giáo viên', roles: ADMIN_ROLES },
   { href: '/quan-tri/tai-khoan', label: 'Tài khoản', roles: ADMIN_ROLES },
   { href: '/luyen-tap', label: 'Luyện tập' },
 ];
