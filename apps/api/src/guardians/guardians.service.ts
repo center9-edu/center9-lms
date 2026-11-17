@@ -10,13 +10,17 @@ import type { GuardianDto, GuardianInput, LinkInput } from './guardians.dto.js';
 // ponytail: one page is enough for one center; add search when guardians outgrow it.
 const MAX_LISTED_GUARDIANS = 1_000;
 
-function toDto(guardian: Guardian & { user: Pick<User, 'username'> | null }): GuardianDto {
+/** Only what the DTO shows of the linked account; never the whole user row. */
+const GUARDIAN_INCLUDE = { user: { select: { username: true, fullName: true } } } satisfies Prisma.GuardianInclude;
+
+function toDto(guardian: Guardian & { user: Pick<User, 'username' | 'fullName'> | null }): GuardianDto {
   return {
     id: guardian.id,
     fullName: guardian.fullName,
     phone: guardian.phone,
     email: guardian.email,
     username: guardian.user?.username ?? null,
+    accountFullName: guardian.user?.fullName ?? null,
   };
 }
 
@@ -30,7 +34,7 @@ export class GuardiansService {
   ) {}
 
   async list(): Promise<GuardianDto[]> {
-    const guardians = await this.prisma.guardian.findMany({ include: { user: true }, orderBy: { fullName: 'asc' }, take: MAX_LISTED_GUARDIANS });
+    const guardians = await this.prisma.guardian.findMany({ include: GUARDIAN_INCLUDE, orderBy: { fullName: 'asc' }, take: MAX_LISTED_GUARDIANS });
     return guardians.map(toDto);
   }
 
@@ -86,14 +90,14 @@ export class GuardiansService {
     const { username, ...fields } = input;
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const data = { ...fields, userId: username === null ? null : await this.parentAccountId(tx, username) };
         if (guardianId !== null && !(await tx.guardian.findUnique({ where: { id: guardianId } }))) {
           throw new NotFoundException();
         }
+        const data = { ...fields, userId: username === null ? null : await this.parentAccountId(tx, username) };
         const guardian =
           guardianId === null
-            ? await tx.guardian.create({ data, include: { user: true } })
-            : await tx.guardian.update({ where: { id: guardianId }, data, include: { user: true } });
+            ? await tx.guardian.create({ data, include: GUARDIAN_INCLUDE })
+            : await tx.guardian.update({ where: { id: guardianId }, data, include: GUARDIAN_INCLUDE });
         // Only whether an account is linked: names and contact details stay out of the audit log.
         await tx.auditLog.create({
           data: {

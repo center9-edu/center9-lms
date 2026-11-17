@@ -43,4 +43,6 @@ export interface GuardianDto {
   email: string | null;
   /** The linked PARENT account, if any. */
   username: string | null;
+  /** Full name on that account, so staff can see a mistyped username linked the wrong person. */
+  accountFullName: string | null;
 }

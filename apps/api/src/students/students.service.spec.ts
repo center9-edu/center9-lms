@@ -104,12 +104,23 @@ describe('StudentsService.get', () => {
   });
 
   it('includes the linked guardians', async () => {
-    const guardian = { id: 'g-hung', fullName: 'Nguyễn Văn Hùng', phone: '0900000001', email: null, user: { username: 'ph.hung' } };
+    const guardian = { id: 'g-hung', fullName: 'Nguyễn Văn Hùng', phone: '0900000001', email: null, user: { username: 'ph.hung', fullName: 'Nguyễn Văn Hùng' } };
     const { service } = setup({
       profiles: [{ userId: 'hs-minh', studentCode: 'HS0001', dateOfBirth: null, schoolName: null, notes: null, guardians: [{ guardian, relationship: 'FATHER', isPrimaryContact: true }] } as StoredProfile],
     });
     await expect(service.get('hs-minh')).resolves.toMatchObject({
-      guardians: [{ guardianId: 'g-hung', fullName: 'Nguyễn Văn Hùng', phone: '0900000001', email: null, username: 'ph.hung', relationship: 'FATHER', isPrimaryContact: true }],
+      guardians: [
+        {
+          guardianId: 'g-hung',
+          fullName: 'Nguyễn Văn Hùng',
+          phone: '0900000001',
+          email: null,
+          username: 'ph.hung',
+          accountFullName: 'Nguyễn Văn Hùng',
+          relationship: 'FATHER',
+          isPrimaryContact: true,
+        },
+      ],
     });
   });
 
@@ -134,7 +145,8 @@ describe('StudentsService.upsert', () => {
     ]);
   });
 
-  it('numbers past HS9999 by value, not by string order', async () => {
+  // The MAX-by-number SQL lives in profile-code.ts (checked by hand on Postgres); this fake only returns its result.
+  it('formats the code after the highest number, past HS9999', async () => {
     const { service } = setup({
       profiles: [
         { userId: 'old-1', studentCode: 'HS9999', dateOfBirth: null, schoolName: null, notes: null },

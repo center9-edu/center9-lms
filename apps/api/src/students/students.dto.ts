@@ -45,6 +45,8 @@ export interface StudentGuardianDto {
   email: string | null;
   /** The guardian's PARENT account, if any. */
   username: string | null;
+  /** Full name on that account. */
+  accountFullName: string | null;
   relationship: string;
   isPrimaryContact: boolean;
 }

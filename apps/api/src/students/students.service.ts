@@ -13,7 +13,7 @@ const DETAIL_INCLUDE = {
   studentProfile: {
     include: {
       guardians: {
-        include: { guardian: { include: { user: { select: { username: true } } } } },
+        include: { guardian: { include: { user: { select: { username: true, fullName: true } } } } },
         orderBy: [{ isPrimaryContact: 'desc' }, { guardian: { fullName: 'asc' } }],
       },
     },
@@ -44,6 +44,7 @@ function toDetail(user: StudentUser): StudentDetailDto {
       phone: guardian.phone,
       email: guardian.email,
       username: guardian.user?.username ?? null,
+      accountFullName: guardian.user?.fullName ?? null,
       relationship,
       isPrimaryContact,
     })),

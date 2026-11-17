@@ -29,10 +29,10 @@ const sales: AuthContext = {
   user: { id: 'sales-1', username: 'nv.ha', fullName: 'Lê Thu Hà', roles: ['SALES'], mustChangePassword: false },
 };
 
-const ACCOUNTS: { id: string; username: string; roles: Role[] }[] = [
-  { id: 'u-ph-hung', username: 'ph.hung', roles: ['PARENT'] },
-  { id: 'u-ph-lan', username: 'ph.lan', roles: ['PARENT'] },
-  { id: 'u-gv-lan', username: 'gv.lan', roles: ['TEACHER'] },
+const ACCOUNTS: { id: string; username: string; fullName: string; roles: Role[] }[] = [
+  { id: 'u-ph-hung', username: 'ph.hung', fullName: 'Nguyễn Văn Hùng', roles: ['PARENT'] },
+  { id: 'u-ph-lan', username: 'ph.lan', fullName: 'Trần Thị Lan', roles: ['PARENT'] },
+  { id: 'u-gv-lan', username: 'gv.lan', fullName: 'Trần Thị Lan', roles: ['TEACHER'] },
 ];
 const unique = () => new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
 
@@ -111,6 +111,7 @@ describe('GuardiansService.create / update', () => {
       phone: '0900000001',
       email: null,
       username: null,
+      accountFullName: null,
     });
     expect(audit).toEqual([{ actorId: 'sales-1', action: 'guardian.created', entityType: 'guardian', entityId: 'g1', metadata: { hasAccount: false } }]);
   });
@@ -118,7 +119,7 @@ describe('GuardiansService.create / update', () => {
   it('links a PARENT account by username', async () => {
     const { service, store } = setup();
     const guardian = await service.create(sales, { fullName: 'Nguyễn Văn Hùng', phone: null, email: 'h@example.com', username: 'ph.hung' });
-    expect(guardian.username).toBe('ph.hung');
+    expect(guardian).toMatchObject({ username: 'ph.hung', accountFullName: 'Nguyễn Văn Hùng' });
     expect(store.get(guardian.id)?.userId).toBe('u-ph-hung');
   });
 
@@ -142,16 +143,22 @@ describe('GuardiansService.create / update', () => {
       phone: null,
       email: 'h@example.com',
       username: null,
+      accountFullName: null,
     });
     expect(audit[0]).toMatchObject({ action: 'guardian.updated', entityId: 'g-hung', metadata: { hasAccount: false } });
     await expect(service.update(sales, 'missing', { fullName: 'X', phone: '0900000001', email: null, username: null })).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('404s for an unknown guardian before checking the username', async () => {
+    const { service } = setup();
+    await expect(service.update(sales, 'missing', { fullName: 'X', phone: '0900000001', email: null, username: 'nobody' })).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('lists guardians', async () => {
     const { service } = setup({ guardians: [HUNG, { ...LAN, userId: 'u-ph-lan' }] });
     await expect(service.list()).resolves.toEqual([
-      { id: 'g-hung', fullName: 'Nguyễn Văn Hùng', phone: '0900000001', email: null, username: null },
-      { id: 'g-lan', fullName: 'Trần Thị Lan', phone: null, email: 'lan@example.com', username: 'ph.lan' },
+      { id: 'g-hung', fullName: 'Nguyễn Văn Hùng', phone: '0900000001', email: null, username: null, accountFullName: null },
+      { id: 'g-lan', fullName: 'Trần Thị Lan', phone: null, email: 'lan@example.com', username: 'ph.lan', accountFullName: 'Trần Thị Lan' },
     ]);
   });
 });
@@ -173,7 +180,8 @@ describe('GuardiansService.link / unlink', () => {
     expect(students.get).toHaveBeenCalledWith('hs-minh');
   });
 
-  it('keeps one primary contact per student', async () => {
+  // Only the clearing step: the FOR UPDATE row lock that serializes concurrent changes is a no-op in this fake.
+  it("clears the primary flag on the student's other links", async () => {
     const { service, linkStore } = setup({
       guardians: [HUNG, LAN],
       links: [
