@@ -42,6 +42,10 @@ Browser ──HTTP──▶ apps/web (Next.js) ──HTTP──▶ apps/api (Nes
 | Tailwind CSS v4 for `apps/web` | Replaced three CSS Modules that each copied the same brand colors. The colors are `@theme` tokens in `apps/web/app/globals.css` (`bg-primary`, `text-muted`, …). Repeated class strings live in `app/ui/styles.ts` and small components in `app/ui/`, only once two or more places use them; there is no component library. |
 | Signed-in pages share the `(app)` route group | `app/(app)/layout.tsx` checks the session and renders the shell with a role-filtered menu; URLs do not change. Each page still calls `requireUser(roles)`, because hiding a menu item is not access control. Login, password change and the public `/luyen-tap` stay outside the shell. |
 | Mock screens for classes and attendance | The demo needs class screens before their API exists. All fake data lives in `apps/web/app/lib/demo-data.ts` (types mirror the Prisma enums, no `apiFetch`), every screen using it shows `DemoBanner` or a "Demo" badge, and nothing is saved. When the classes API lands, delete the file and replace each compile error with an API call. |
+| Profiles: students, teachers, guardians | `students/`, `teachers/` and `guardians/` modules. Admins and sales manage student profiles and guardians; only admins manage teacher profiles (agreed 2026-11-17). A profile belongs to an existing account with the matching role; accounts are still created by admins only. `PUT` replaces a whole profile and the first save creates it. |
+| Profile codes `HS0001`, `GV0001` are generated | `apps/api/src/profile-code.ts`: the highest existing number plus one, compared as numbers, with a retry when two first saves pick the same code (P2002). No Postgres sequence, so no migration; switch to one if profiles get bulk-created. |
+| Guardians do not need an account | A guardian can be contact-only (name plus a phone or email). Linking a `PARENT` account goes by username, because sales cannot list accounts. Relationships are a fixed list (`FATHER`, `MOTHER`, `GRANDFATHER`, `GRANDMOTHER`, `OTHER`), stored as text. |
+| One primary contact per student | Linking locks the student's `student_profiles` row (`SELECT … FOR UPDATE`) and clears the flag on the other links in the same transaction. A partial unique index would also work but needs a hand-written migration. |
 
 ## Authentication and authorization
 
@@ -93,5 +97,5 @@ The database does not guarantee the following rules:
 - **Progress:** a lesson is complete when every part is linked to a `COMPLETED` session; compute this with a query, not a stored column.
 - **Capacity:** count only `ACTIVE`, and check inside a transaction that locks the class row.
 - **Published versions:** do not allow edits, including `part_count`, so class progress stays correct.
-- **DTOs:** never return `password_hash` or `token_hash`; do not return `student_profiles.notes` to students or parents.
+- **DTOs:** never return `password_hash` or `token_hash`; do not return `student_profiles.notes` to students or parents. Today only admins and sales can read student profiles at all; keep `notes` out of any endpoint added for students or parents.
 - **`audit_logs.metadata`:** must not contain personal data.
