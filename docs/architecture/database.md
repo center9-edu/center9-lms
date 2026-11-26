@@ -14,11 +14,11 @@ The source of truth is [`packages/database/prisma/schema.prisma`](../../packages
 | People | `guardians` | Parents and guardians; an account is optional |
 | People | `student_guardians` | Links students and guardians; at most one primary contact per student |
 | People | `audit_logs` | Who did what; a null actor means the system |
-| Curriculum | `courses` | A course, independent of its content versions |
-| Curriculum | `course_versions` | A numbered version of a course's content |
-| Curriculum | `chapters` | Ordered chapters of a version |
+| Curriculum | `courses` | A course and its one curriculum, which every class of it follows |
+| Curriculum | `chapters` | Ordered chapters of a course |
 | Curriculum | `lessons` | Ordered lessons of a chapter, each taught in `part_count` parts |
-| Classes | `classes` | A class, tied to one course version |
+| Curriculum | `lesson_attachments` | PDF/DOCX files of a lesson; the bytes live on disk under `UPLOAD_DIR` |
+| Classes | `classes` | A class of one course |
 | Classes | `class_teachers` | Teachers of a class and their role in it |
 | Classes | `class_enrollments` | One row per student and class |
 | Classes | `class_sessions` | Scheduled sessions of a class |
@@ -37,11 +37,11 @@ erDiagram
     student_profiles ||--o{ student_guardians : ""
     guardians ||--o{ student_guardians : ""
 
-    courses ||--o{ course_versions : ""
-    course_versions ||--o{ chapters : ""
+    courses ||--o{ chapters : ""
     chapters ||--o{ lessons : ""
+    lessons ||--o{ lesson_attachments : ""
 
-    course_versions ||--o{ classes : ""
+    courses ||--o{ classes : ""
     classes ||--o{ class_teachers : ""
     teacher_profiles ||--o{ class_teachers : ""
     classes ||--o{ class_enrollments : ""
@@ -58,6 +58,8 @@ erDiagram
 ### Lessons taught across sessions
 
 A session can cover several lessons, and a lesson can span several sessions. `lessons.part_count` sets how many parts the curriculum gives a lesson, and each `class_session_lessons` row records one part.
+
+The API writes these rows when it settles a session that has ended (see `docs/architecture/README.md`): what it taught is kept from then on, and the curriculum guards read them. The parts of sessions still to come are worked out on every read, not stored.
 
 For a lesson A with two parts, where the second session also covers lesson B:
 
@@ -107,13 +109,14 @@ Prisma cannot express these, so they are written by hand at the end of each migr
 | `users` | `users_username_lowercase_check` | `username` is lowercase |
 | `auth_sessions` | `auth_sessions_expires_after_created_check` | `expires_at` is after `created_at` |
 | `student_guardians` | `student_guardians_one_primary_per_student_idx` | One primary contact per student (partial unique index) |
-| `course_versions` | `course_versions_version_number_check` | `version_number` is above 0 |
-| `course_versions` | `course_versions_published_at_check` | `PUBLISHED` requires `published_at` |
 | `chapters` | `chapters_position_check` | `position` is 0 or more |
 | `lessons` | `lessons_position_check` | `position` is 0 or more |
 | `lessons` | `lessons_part_count_check` | `part_count` is above 0 |
+| `lesson_attachments` | `lesson_attachments_size_bytes_check` | `size_bytes` is above 0 |
 | `classes` | `classes_capacity_check` | `capacity` is empty or above 0 |
 | `classes` | `classes_date_range_check` | `end_date` is not before `start_date` |
+| `classes` | `classes_schedule_weekdays_check` | `schedule_weekdays` holds only ISO weekdays 1–7 |
+| `classes` | `classes_schedule_times_check` | `schedule_start_time` and `schedule_end_time` are both set or both empty |
 | `class_enrollments` | `class_enrollments_left_at_status_check` | `left_at` is set only for `DROPPED` and `REMOVED`, and always for them |
 | `class_enrollments` | `class_enrollments_left_after_enrolled_check` | `left_at` is not before `enrolled_at` |
 | `class_sessions` | `class_sessions_time_range_check` | `ends_at` is after `starts_at` |
@@ -134,7 +137,6 @@ The schema currently takes these defaults, all easy to change later:
 
 | Question | Current default |
 | --- | --- |
-| Can a course have several `PUBLISHED` versions? | Yes, because running classes stay on older versions |
 | Is a class limited to one main teacher? | No limit |
 | Is the teacher recorded per session, for substitutes? | Not recorded |
 
