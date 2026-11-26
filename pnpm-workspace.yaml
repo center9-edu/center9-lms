@@ -6,3 +6,8 @@ allowBuilds:
   '@prisma/engines': true
   prisma: true
   unrs-resolver: false
+
+overrides:
+  # prisma@7.10.1 (latest 7.x) pins effect 3.20.0, which has a ReDoS (GHSA for effect <=3.22.0).
+  # Remove once a Prisma release depends on effect >=3.22.1.
+  '@prisma/config>effect': 3.22.5

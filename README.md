@@ -75,11 +75,30 @@ with no accounts yet, so reset first: `pnpm --filter @center9/database exec pris
 Log in as `nv.ha` (sales) or `admin` to edit student profiles and guardians at <http://localhost:3000/hoc-sinh>.
 Teacher profiles at <http://localhost:3000/giao-vien> are for admins only. Names in the account list link to the profile.
 
-### Demo screens (`/lop-hoc`)
+### Curriculum (`/chuong-trinh`)
 
-Classes, sessions and attendance have no API yet. `/lop-hoc`, `/lop-hoc/<code>` and the dashboard widgets marked **Demo** use fake data
-from `apps/web/app/lib/demo-data.ts` and say so on screen. Attendance marked there lives only in the browser tab and resets on reload.
-Log in as `gv.lan`, `nv.ha`, `hs.minh` or `ph.hung` (see `pnpm db:seed`) to see each role's view.
+Log in as `gv.lan` or `admin` to create courses, build their chapters and lessons and attach PDF/DOCX files; every class of a course follows its one curriculum, and changes apply at once.
+Each lesson has its own page (`/chuong-trinh/<slug>/bai/<id>`) where PDFs read in the page and Word files download.
+`nv.ha` (sales) can only read. The seed adds `lap-trinh-python-co-ban`: 3 chapters, 6 lessons, 10 parts (one session each), without files.
+Uploads need `UPLOAD_DIR` in `.env` (see below); restart `pnpm dev` after adding it.
+
+### Classes (`/lop-hoc`)
+
+The seed adds class `LH0001` on that course: in progress, Monday/Wednesday/Friday evenings from the Monday of the week before the seed ran,
+with `gv.lan` (main teacher), `gv.nam` (assistant), `hs.minh` and `hs.an`. So some lessons are open and some are still locked.
+
+- `admin`: create classes, change their status, assign teachers, make the schedule, move, cancel or add sessions.
+- `nv.ha` (sales): enroll students and change their status.
+- `gv.lan` (main teacher) and `gv.nam` (assistant): mark attendance from 15 minutes before a session (open a session from the class page),
+  correct it later, record a substitute, and give a session off (the schedule moves back).
+  Sessions that have ended show as taught by themselves.
+- `hs.minh`, `hs.an` (students) and `ph.hung` (parent of `hs.minh`): see the sessions and their attendance, and read the PDFs of lessons that have opened.
+  The seed marks attendance for the sessions already over; `gv.nam` taught the second one as a substitute.
+  Upload a PDF to a lesson on `/chuong-trinh` first; a Word file stays for teachers.
+
+### Demo dashboard
+
+The dashboard widgets marked **Demo** still use fake data from `apps/web/app/lib/demo-data.ts` and say so on screen; they move to real data with the dashboard phase.
 
 ### Coding practice (`/luyen-tap`)
 
@@ -124,6 +143,7 @@ CI checks that migrations apply to a fresh database and that `schema.prisma` has
 | `JUDGE0_URL`        | API                      | Without it, code runs return `503`. See `infra/judge0/README.md` |
 | `JUDGE0_AUTHN_TOKEN`, `JUDGE0_AUTHZ_TOKEN` | API | Required for a real Judge0 instance; the local fake ignores them |
 | `TRIAL_SIGNUP_URL`  | Web (server-side)        | Target of the signup button on `/luyen-tap`; hidden when unset  |
+| `UPLOAD_DIR`        | API                      | Folder for lesson files; relative paths start from `apps/api`. Uploads fail with `500` when unset. Back it up with the database |
 
 Local PostgreSQL settings are fixed in `infra/docker/compose.yaml` (port `5433`), not read from `.env`. The default `DATABASE_URL` in `.env.example` matches them.
 

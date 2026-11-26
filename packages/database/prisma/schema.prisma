@@ -53,6 +53,7 @@ model User {
   auditLogs        AuditLog[]
   coursesCreated   Course[]
   attendanceMarked Attendance[]
+  lessonFiles      LessonAttachment[]
 
   @@map("users")
 }
@@ -100,8 +101,9 @@ model TeacherProfile {
   teacherCode String  @unique @map("teacher_code")
   bio         String?
 
-  user    User           @relation(fields: [userId], references: [id], onDelete: Restrict)
-  classes ClassTeacher[]
+  user           User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  classes        ClassTeacher[]
+  sessionsTaught ClassSession[]
 
   @@map("teacher_profiles")
 }
@@ -155,57 +157,39 @@ model AuditLog {
 // Curriculum
 // ---------------------------------------------------------------------------
 
-enum CourseVersionStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-
-  @@map("course_version_status")
-}
-
 model Course {
   id          String    @id @default(uuid()) @db.Uuid
   title       String
   slug        String    @unique
   description String?
+  // Shown as "Nhóm": SCRATCH, PYTHON, WEB or ROBOTICS. Like level, a fixed list kept as text and checked by the API.
+  subject     String
+  // BASIC, INTERMEDIATE or ADVANCED; a fixed list kept as text and checked by the API, like guardian relationships.
+  level       String
   archivedAt  DateTime? @map("archived_at") @db.Timestamptz(3)
   createdById String?   @map("created_by") @db.Uuid
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  createdBy User?           @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  versions  CourseVersion[]
+  createdBy User?     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  chapters  Chapter[]
+  classes   Class[]
 
   @@index([createdById])
   @@map("courses")
 }
 
-model CourseVersion {
-  id            String              @id @default(uuid()) @db.Uuid
-  courseId      String              @map("course_id") @db.Uuid
-  versionNumber Int                 @map("version_number")
-  status        CourseVersionStatus @default(DRAFT)
-  publishedAt   DateTime?           @map("published_at") @db.Timestamptz(3)
-  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-
-  course   Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  chapters Chapter[]
-  classes  Class[]
-
-  @@unique([courseId, versionNumber])
-  @@map("course_versions")
-}
-
+// A course has one chapter tree; every class of the course follows it, and changes reach them at once.
 model Chapter {
-  id              String @id @default(uuid()) @db.Uuid
-  courseVersionId String @map("course_version_id") @db.Uuid
-  title           String
-  position        Int
+  id       String @id @default(uuid()) @db.Uuid
+  courseId String @map("course_id") @db.Uuid
+  title    String
+  position Int
 
-  courseVersion CourseVersion @relation(fields: [courseVersionId], references: [id], onDelete: Restrict)
-  lessons       Lesson[]
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  lessons Lesson[]
 
-  @@unique([courseVersionId, position])
+  @@unique([courseId, position])
   @@map("chapters")
 }
 
@@ -219,11 +203,32 @@ model Lesson {
   partCount Int      @default(1) @map("part_count")
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  chapter  Chapter              @relation(fields: [chapterId], references: [id], onDelete: Restrict)
-  sessions ClassSessionLesson[]
+  chapter     Chapter              @relation(fields: [chapterId], references: [id], onDelete: Restrict)
+  sessions    ClassSessionLesson[]
+  attachments LessonAttachment[]
 
   @@unique([chapterId, position])
   @@map("lessons")
+}
+
+// A PDF or DOCX file of a lesson. The bytes live on disk under UPLOAD_DIR/<storageKey>;
+// fileName is only for display and downloads, never part of a path.
+model LessonAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  lessonId     String   @map("lesson_id") @db.Uuid
+  fileName     String   @map("file_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  storageKey   String   @unique @map("storage_key") @db.Uuid
+  uploadedById String?  @map("uploaded_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  lesson     Lesson @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  uploadedBy User?  @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([lessonId])
+  @@index([uploadedById])
+  @@map("lesson_attachments")
 }
 
 // ---------------------------------------------------------------------------
@@ -276,23 +281,28 @@ enum AttendanceStatus {
 }
 
 model Class {
-  id              String      @id @default(uuid()) @db.Uuid
-  courseVersionId String      @map("course_version_id") @db.Uuid
-  name            String
-  code            String      @unique
-  status          ClassStatus @default(DRAFT)
-  startDate       DateTime?   @map("start_date") @db.Date
-  endDate         DateTime?   @map("end_date") @db.Date
-  capacity        Int?
-  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                String      @id @default(uuid()) @db.Uuid
+  courseId          String      @map("course_id") @db.Uuid
+  name              String
+  code              String      @unique
+  status            ClassStatus @default(DRAFT)
+  startDate         DateTime?   @map("start_date") @db.Date
+  endDate           DateTime?   @map("end_date") @db.Date
+  capacity          Int?
+  // The weekly pattern the schedule was made from (agreed 2026-11-26), so a day off can add a session at the end:
+  // ISO weekdays (1 = Monday "Thứ 2" … 7 = Sunday) and "HH:MM" in Vietnam. Empty for a class without a schedule.
+  scheduleWeekdays  Int[]       @default([]) @map("schedule_weekdays")
+  scheduleStartTime String?     @map("schedule_start_time")
+  scheduleEndTime   String?     @map("schedule_end_time")
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  courseVersion CourseVersion     @relation(fields: [courseVersionId], references: [id], onDelete: Restrict)
-  teachers      ClassTeacher[]
-  enrollments   ClassEnrollment[]
-  sessions      ClassSession[]
+  course      Course            @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  teachers    ClassTeacher[]
+  enrollments ClassEnrollment[]
+  sessions    ClassSession[]
 
-  @@index([courseVersionId])
+  @@index([courseId])
   @@map("classes")
 }
 
@@ -330,22 +340,26 @@ model ClassEnrollment {
 }
 
 model ClassSession {
-  id        String             @id @default(uuid()) @db.Uuid
-  classId   String             @map("class_id") @db.Uuid
-  title     String
-  startsAt  DateTime           @map("starts_at") @db.Timestamptz(3)
-  endsAt    DateTime           @map("ends_at") @db.Timestamptz(3)
-  location  String?
-  status    ClassSessionStatus @default(SCHEDULED)
-  note      String?
-  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id         String             @id @default(uuid()) @db.Uuid
+  classId    String             @map("class_id") @db.Uuid
+  title      String
+  startsAt   DateTime           @map("starts_at") @db.Timestamptz(3)
+  endsAt     DateTime           @map("ends_at") @db.Timestamptz(3)
+  location   String?
+  status     ClassSessionStatus @default(SCHEDULED)
+  note       String?
+  // Who really taught the session: the main teacher by default, or a substitute (agreed 2026-11-26).
+  taughtById String?            @map("taught_by") @db.Uuid
+  updatedAt  DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   class      Class                @relation(fields: [classId], references: [id], onDelete: Restrict)
+  taughtBy   TeacherProfile?      @relation(fields: [taughtById], references: [userId], onDelete: Restrict)
   lessons    ClassSessionLesson[]
   attendance Attendance[]
 
   @@unique([id, classId])
   @@index([classId, startsAt])
+  @@index([taughtById])
   @@map("class_sessions")
 }
 

@@ -13,6 +13,8 @@ packages/database/src/generated/
 !.env.example
 
 .DS_Store
+# Lesson files uploaded in local development (UPLOAD_DIR)
+apps/api/uploads/
 *.log
 
 # Local planning artifacts (see CLAUDE.md, Git Conventions)

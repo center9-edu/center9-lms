@@ -12,6 +12,21 @@ export const ADMIN_ROLES: Role[] = ['SUPER_ADMIN', 'CENTER_ADMIN'];
 /** May manage student profiles; mirrors @Roles on the API's StudentsController. */
 export const STUDENT_MANAGER_ROLES: Role[] = [...ADMIN_ROLES, 'SALES'];
 
+/** Author curriculum; mirrors the write @Roles on the API's CoursesController. */
+export const CURRICULUM_AUTHOR_ROLES: Role[] = [...ADMIN_ROLES, 'TEACHER'];
+
+/** Read curriculum; sales read only. */
+export const CURRICULUM_READ_ROLES: Role[] = [...CURRICULUM_AUTHOR_ROLES, 'SALES'];
+
+/** See classes; mirrors @Roles on the API's ClassesController. Teachers see only the classes they teach; admins also run them. */
+export const CLASS_ROLES: Role[] = ['SUPER_ADMIN', 'CENTER_ADMIN', 'SALES', 'TEACHER'];
+
+/** See their own classes and open lessons; mirrors @Roles on the API's LearnerClassesController. */
+export const LEARNER_ROLES: Role[] = ['STUDENT', 'PARENT'];
+
+/** Staff views win for someone who also has a learner role, as on the API. */
+export const isStaff = (user: SessionUser) => CLASS_ROLES.some((role) => user.roles.includes(role));
+
 export const ROLE_LABELS: Record<Role, string> = {
   STUDENT: 'Học sinh',
   PARENT: 'Phụ huynh',
