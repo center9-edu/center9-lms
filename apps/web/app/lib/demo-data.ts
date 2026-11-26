@@ -3,7 +3,7 @@
 // Types mirror the enums in packages/database/prisma/schema.prisma (apps/web cannot import @center9/database).
 // Fake people only: teacher and student names match the accounts in apps/api/src/scripts/seed.ts or are made up.
 import type { BadgeTone } from '../ui/badge';
-import type { Role, SessionUser } from './session';
+import type { SessionUser } from './session';
 
 export type ClassStatus = 'DRAFT' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type ClassTeacherRole = 'MAIN_TEACHER' | 'ASSISTANT';
@@ -72,9 +72,6 @@ export const TEACHER_ROLE_LABELS: Record<ClassTeacherRole, string> = {
   MAIN_TEACHER: 'Giáo viên chính',
   ASSISTANT: 'Trợ giảng',
 };
-
-/** Who may open the class pages. Teachers see only their own classes (see classesFor). */
-export const CLASS_ROLES: Role[] = ['SUPER_ADMIN', 'CENTER_ADMIN', 'SALES', 'TEACHER'];
 
 const LAN = { username: 'gv.lan', fullName: 'Trần Thị Lan' };
 const NAM = { username: 'gv.nam', fullName: 'Phạm Văn Nam' };
