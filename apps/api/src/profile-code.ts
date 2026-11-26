@@ -14,10 +14,14 @@ const MAX_CODE_QUERIES = {
     SELECT MAX(CAST(SUBSTRING(teacher_code FROM 3) AS INTEGER)) AS max
     FROM teacher_profiles
     WHERE teacher_code ~ '^GV[0-9]+$'`,
+  LH: (tx: Prisma.TransactionClient) => tx.$queryRaw<{ max: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING(code FROM 3) AS INTEGER)) AS max
+    FROM classes
+    WHERE code ~ '^LH[0-9]+$'`,
 };
 
 /**
- * Next profile code (HS0001, GV0001, …): the highest number so far plus one, compared as numbers so
+ * Next profile or class code (HS0001, GV0001, LH0001, …): the highest number so far plus one, compared as numbers so
  * HS10000 follows HS9999. Run it inside retryOnUniqueConflict: two first saves can pick the same code.
  * ponytail: MAX + retry instead of a Postgres sequence (no migration); switch if profiles get bulk-created.
  */
@@ -37,7 +41,7 @@ export async function retryOnUniqueConflict<T>(save: () => Promise<T>): Promise<
         throw error;
       }
       if (attempt >= MAX_ATTEMPTS) {
-        throw new ConflictException('Another profile was saved at the same time; please retry');
+        throw new ConflictException('Another change was saved at the same time; please retry');
       }
     }
   }

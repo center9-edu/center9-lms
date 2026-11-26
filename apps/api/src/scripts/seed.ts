@@ -2,6 +2,7 @@
 // Run with `pnpm db:seed` right after a reset; it refuses to touch a database that already has accounts.
 import type { Role } from '@center9/database';
 import { hashPassword } from '../auth/password.js';
+import { weeklySessions } from '../classes/schedule.js';
 import { PrismaService } from '../prisma.service.js';
 
 const SEED_PASSWORD = 'Center9-test';
@@ -79,6 +80,82 @@ try {
     },
   });
   console.log('created  profiles: HS0001-HS0002, GV0001-GV0002, 2 guardians');
+
+  // One course of 10 parts (one session each), and one class running on it. No lesson files: upload them in the app.
+  const lessons = (titles: [string, number][]) => ({ create: titles.map(([title, partCount], position) => ({ title, partCount, position })) });
+  const course = await prisma.course.create({
+    data: {
+      title: 'Lập trình Python Cơ bản',
+      slug: 'lap-trinh-python-co-ban',
+      description: 'Khoá học mẫu: làm quen Python qua 10 buổi, từ biến, điều kiện, vòng lặp đến hàm và một trò chơi nhỏ.',
+      subject: 'PYTHON',
+      level: 'BASIC',
+      createdById: idOf('gv.lan'),
+      chapters: {
+        create: [
+          { title: 'Làm quen với Python', position: 0, lessons: lessons([['Bài 1: Python là gì? Chương trình đầu tiên', 1], ['Bài 2: Biến và kiểu dữ liệu', 2]]) },
+          { title: 'Điều kiện và vòng lặp', position: 1, lessons: lessons([['Bài 3: Câu lệnh if', 2], ['Bài 4: Vòng lặp for và while', 2]]) },
+          { title: 'Hàm và dự án nhỏ', position: 2, lessons: lessons([['Bài 5: Hàm', 1], ['Bài 6: Dự án trò chơi đoán số', 2]]) },
+        ],
+      },
+    },
+  });
+  console.log('created  course: lap-trinh-python-co-ban (3 chapters, 6 lessons, 10 parts)');
+
+  // Monday, Wednesday and Friday evenings from the Monday of last week, so some lessons are already open to students
+  // and some are still locked whenever the seed runs.
+  const today = new Date(Date.now() + 7 * 3_600_000); // Vietnam is UTC+7
+  const daysSinceMonday = (today.getUTCDay() + 6) % 7;
+  const startDate = new Date(today.getTime() - (daysSinceMonday + 7) * 86_400_000).toISOString().slice(0, 10);
+  const pattern = { weekdays: [1, 3, 5], startTime: '18:00', endTime: '19:30' };
+  const sessions = weeklySessions({ startDate, ...pattern, count: 10 });
+  const seededClass = await prisma.class.create({
+    data: {
+      code: 'LH0001',
+      name: 'Python Cơ bản – Tối T2/T4/T6',
+      courseId: course.id,
+      status: 'IN_PROGRESS',
+      startDate: new Date(startDate),
+      endDate: sessions.at(-1)?.startsAt ?? null,
+      capacity: 12,
+      scheduleWeekdays: pattern.weekdays,
+      scheduleStartTime: pattern.startTime,
+      scheduleEndTime: pattern.endTime,
+      teachers: {
+        create: [
+          { teacherId: idOf('gv.lan'), roleInClass: 'MAIN_TEACHER' },
+          { teacherId: idOf('gv.nam'), roleInClass: 'ASSISTANT' },
+        ],
+      },
+      enrollments: { create: [{ studentId: idOf('hs.minh') }, { studentId: idOf('hs.an') }] },
+      // title is an optional label: the API works out each session's number and lesson on every read.
+      sessions: { create: sessions.map((times) => ({ title: '', ...times })) },
+    },
+    include: { enrollments: true, sessions: { orderBy: { startsAt: 'asc' } } },
+  });
+  // Attendance for the sessions already over, and gv.nam teaching the second one as a substitute. The API marks
+  // them taught on the first read of the schedule, the way it does for every class (it keeps the substitute).
+  const now = new Date();
+  const past = seededClass.sessions.filter(({ endsAt }) => endsAt <= now);
+  const marks = ['PRESENT', 'PRESENT', 'LATE', 'PRESENT', 'ABSENT', 'PRESENT', 'EXCUSED'] as const;
+  const markFor = (n: number) => marks[n % marks.length] ?? 'PRESENT';
+  for (const [index, session] of past.entries()) {
+    const markedById = index === 1 ? idOf('gv.nam') : idOf('gv.lan');
+    if (index === 1) {
+      await prisma.classSession.update({ where: { id: session.id }, data: { taughtById: markedById } });
+    }
+    await prisma.attendance.createMany({
+      data: seededClass.enrollments.map((enrollment, offset) => ({
+        classId: seededClass.id,
+        classSessionId: session.id,
+        enrollmentId: enrollment.id,
+        status: markFor(index + offset * 3),
+        note: markFor(index + offset * 3) === 'ABSENT' ? 'Gia đình báo nghỉ (ghi chú mẫu)' : null,
+        markedById,
+      })),
+    });
+  }
+  console.log(`created  class:  LH0001 (in progress, 10 sessions from ${startDate}, ${past.length} with attendance; hs.minh and hs.an; parent ph.hung sees it)`);
   console.log(`\nPassword for every seeded account: ${SEED_PASSWORD}`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
